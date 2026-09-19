@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Dialog Creator turns poll questions into a complete Minecraft dialog data pack: aligned checkboxes, pages, pre-filled answers, tallies and a results screen.">
+<meta name="description" content="Dialog Creator builds Minecraft dialog data packs: a poll system with aligned inputs, pages and results, plus a free-form editor for every dialog type with a live preview.">
 <title>Dialog Creator</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Silkscreen&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -24,6 +24,30 @@ body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.6 var(--body
 .head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:4px 0 0}
 h1{font:400 clamp(36px,4.5vw,54px)/0.9 var(--pixel);text-transform:uppercase;margin:0;letter-spacing:.03em;text-wrap:balance}
 .rule{width:48px;height:4px;background:var(--accent)}
+.modes{display:flex;justify-content:center;margin-top:6px}
+.mode{font:400 20px/1 var(--pixel);text-transform:uppercase;letter-spacing:.03em;padding:10px 18px 8px;background:var(--panel);border:1px solid var(--line-2);color:var(--ink-2)}
+.mode+.mode{border-left:0}
+.mode.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mode:hover{color:var(--ink)}
+.mode.active:hover{color:var(--accent-ink)}
+.dtop{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}
+.dtop .n{font:400 22px/1 var(--pixel);color:var(--muted);padding-bottom:9px}
+details.sub{border:1px solid var(--line);background:var(--panel)}
+details.sub>summary{list-style:none;cursor:pointer;padding:8px 10px;font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center}
+details.sub>summary::-webkit-details-marker{display:none}
+details.sub>summary::after{content:"+";margin-left:auto;color:var(--muted);font:400 18px/1 var(--pixel)}
+details.sub[open]>summary::after{content:"–"}
+details.sub .body{padding:8px 10px 10px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line)}
+.f2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.f3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.f2 .check,.f3 .check{padding-top:22px}
+.item{border:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:8px}
+.item .top{display:flex;gap:8px;align-items:center}
+.item .top select{width:auto;padding:6px 28px 6px 10px;font-size:13px}
+.item .top .sp{flex:1}
+.acts{display:flex;gap:8px}
+.small-in input,.small-in textarea,.small-in select{padding:6px 8px;font-size:13px}
+textarea.mono{font:12.5px/1.5 var(--mono);white-space:pre;overflow-x:auto}
 .lede{margin:0;color:var(--muted);max-width:64ch;font-size:14px;line-height:1.55;text-wrap:balance}
 section{background:var(--panel);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:12px}
 h2{display:flex;align-items:center;gap:10px;margin:0;font:400 22px/1 var(--pixel);text-transform:uppercase;letter-spacing:.02em}
@@ -87,11 +111,15 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
   <header class="head">
     <h1>Dialog Creator</h1>
     <span class="rule" aria-hidden="true"></span>
-    <p class="lede">Write the questions, get a complete poll data pack: aligned inputs, pages with Back and Next, every player's previous answers pre-filled, live tallies and a results screen.</p>
+    <p class="lede">Build Minecraft dialogs and get a data pack back. Poll makes a complete voting system with aligned inputs, pages, pre-filled answers and a results screen. Dialogs is the free-form editor: any type, body text and items, inputs, buttons, links between screens, pause-menu and Quick Actions hooks.</p>
+    <div class="modes" role="group" aria-label="Tool">
+      <button id="modePoll" class="mode active" type="button">Poll</button>
+      <button id="modeDialogs" class="mode" type="button">Dialogs</button>
+    </div>
   </header>
 
   <div class="grid">
-  <div class="col">
+  <div class="col" id="pollLeft">
   <section>
     <h2><span class="cb impulse" aria-hidden="true"></span>Questions</h2>
     <div id="questions" class="qlist"></div>
@@ -113,6 +141,25 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
         <div class="field"><label class="t" for="pass">Pass threshold · Yes % · blank for none</label><input id="pass" type="text"></div>
       </div>
       <label class="check"><input id="shortLabels" type="checkbox"> Short labels (Q1, Q2…) with the questions listed in the body</label>
+    </div>
+  </details>
+  </div>
+
+  <div class="col hidden" id="dialogLeft">
+  <section>
+    <h2><span class="cb impulse" aria-hidden="true"></span>Dialogs</h2>
+    <div id="dialogs" class="qlist"></div>
+    <div class="row"><button id="addDialog" type="button">Add dialog</button><span class="t" id="dstat"></span></div>
+  </section>
+
+  <details class="box" open>
+    <summary>Settings</summary>
+    <div class="body">
+      <div class="opts">
+        <div class="field"><label class="t" for="dns">Namespace</label><input id="dns" type="text"></div>
+        <div class="field"><label class="t" for="dscreen">Preview screen</label><select id="dscreen"><option value="480x270">GUI scale 4 on 1080p · 480×270</option><option value="640x360">GUI scale 3 on 1080p · 640×360</option><option value="960x540">GUI scale 2 on 1080p · 960×540</option></select></div>
+      </div>
+      <p class="line">Titles, labels and text take plain text or a JSON text component such as <code>{"text":"Hi","color":"gold"}</code>. Buttons run commands as the player who clicks. Dialog ids inside this pack can be written without the namespace.</p>
     </div>
   </details>
   </div>
@@ -174,24 +221,32 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
 
   /* ---------- state ---------- */
   var state = {
+    mode: "poll",
     questions: [
       {type:"check", text:"Should we build a Nether hub?"},
       {type:"check", text:"Keep the current spawn?"},
       {type:"choice", text:"Next group build?", options:["Castle","Farm","City"]},
       {type:"check", text:"Weekly events?"}
     ],
-    settings: {title:"Poll Booth", intro:"Votes can be changed anytime before polling ends.", ns:"poll", pid:"booth", rowW:"320", perPage:"4", submit:"trigger", screen:"480x270", pass:"70", shortLabels:false}
+    settings: {title:"Poll Booth", intro:"Votes can be changed anytime before polling ends.", ns:"poll", pid:"booth", rowW:"320", perPage:"4", submit:"trigger", screen:"480x270", pass:"70", shortLabels:false},
+    dialogs: sampleDialogs(),
+    dsettings: {ns:"mypack"}
   };
   try {
     var saved = JSON.parse(localStorage.getItem("dca-state2") || "null");
-    if (saved && saved.questions && saved.questions.length){
-      state.questions = saved.questions;
-      state.questions.forEach(function(q){ if (q.type === "yesno") q.type = saved.mode === "buttons" ? "button" : "check"; }); /* older saves had one global style */
+    if (saved){
+      if (saved.questions && saved.questions.length){
+        state.questions = saved.questions;
+        state.questions.forEach(function(q){ if (q.type === "yesno") q.type = saved.mode === "buttons" ? "button" : "check"; }); /* older saves had one global style */
+      }
       if (saved.settings) for (var k in saved.settings) state.settings[k] = saved.settings[k];
+      if (saved.dialogs && saved.dialogs.length) state.dialogs = saved.dialogs;
+      if (saved.dsettings) for (var k2 in saved.dsettings) state.dsettings[k2] = saved.dsettings[k2];
+      if (saved.mode === "poll" || saved.mode === "dialogs") state.mode = saved.mode;
     }
   } catch(e){}
   function isYN(q){ return q.type === "check" || q.type === "button"; }
-  var S = state.settings, activePage = 0, lastBuild = null;
+  var S = state.settings, D = state.dsettings, activePage = 0, lastBuild = null;
 
   function el(tag, attrs, text){ var e = document.createElement(tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
   function $(id){ return document.getElementById(id); }
@@ -205,8 +260,11 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
   /* ---------- settings ---------- */
   ["title","intro","ns","pid","rowW","perPage","submit","screen","pass"].forEach(function(id){
     var e = $(id); e.value = S[id];
-    e.addEventListener(e.tagName === "SELECT" ? "change" : "input", function(){ S[id] = e.value; if (id === "perPage" || id === "submit") renderQuestions(); update(); });
+    e.addEventListener(e.tagName === "SELECT" ? "change" : "input", function(){ S[id] = e.value; if (id === "perPage" || id === "submit") renderQuestions(); if (id === "screen") $("dscreen").value = e.value; update(); });
   });
+  $("dns").value = D.ns; $("dns").addEventListener("input", function(){ D.ns = $("dns").value; update(); });
+  $("dscreen").value = S.screen; $("dscreen").addEventListener("change", function(){ S.screen = $("dscreen").value; $("screen").value = S.screen; update(); });
+  $("addDialog").addEventListener("click", function(){ state.dialogs.push(newDialog("dialog_" + (state.dialogs.length + 1), "notice")); activePage = state.dialogs.length - 1; renderDialogs(); update(); });
   $("shortLabels").checked = !!S.shortLabels;
   $("shortLabels").addEventListener("change", function(){ S.shortLabels = $("shortLabels").checked; update(); });
 
@@ -288,7 +346,7 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
   }
 
   /* ---------- generator ---------- */
-  function build(){
+  function buildPoll(){
     var ns = ident(S.ns, "poll"), pid = ident(S.pid, "booth"), rowW = num(S.rowW, 320), trig = S.submit === "trigger", shortL = !!S.shortLabels;
     var qs = state.questions, pages = paginate(), warnings = [], odd = [], files = [], pageDialogs = [];
     var fn = function(name){ return ns + ":" + pid + "/" + name; };
@@ -492,7 +550,9 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
     add("pack.mcmeta", JSON.stringify({pack:{description:title + " poll", min_format:121, max_format:121}}, null, 2));
     add("README.txt", ["Made with Dialog Creator.", "", "Install: drop this zip into saves/<world>/datapacks and enter the world.", "Post the clickable links once:  /function " + fn("announce"), "Players vote with the [Vote] link, or  /trigger " + obj("open"), "Results screen: the [Results] link, or  /trigger " + obj("results"), "Submission: " + (trig ? "trigger, works for every player" : "function, needs op or singleplayer"), "", "Static copies of each page are in data/" + ns + "/dialog/ (no pre-fill): /dialog show @s " + ns + ":" + pid + "_page_1"]);
     files.sort(function(a, b){ return a.path < b.path ? -1 : 1; });
-    return {files:files, warnings:warnings, pages:pages, pageDialogs:pageDialogs, rowW:rowW, widthInfo:widthInfo, ns:ns, pid:pid, trig:trig, pass:pass, fn:fn, obj:obj};
+    return {kind:"poll", files:files, warnings:warnings, pages:pages, pageDialogs:pageDialogs, rowW:rowW, widthInfo:widthInfo, ns:ns, pid:pid, trig:trig, pass:pass, fn:fn, obj:obj,
+      tabs: pages.map(function(_, p){ return "Page " + (p+1); }), zipName: pid + "-poll.zip",
+      howto: "Drop the zip into <code>saves/&lt;world&gt;/datapacks</code>, enter the world, run <code>/function " + esc(fn("announce")) + "</code> once to post the [Vote] and [Results] links. Or copy the files below one by one."};
   }
 
   /* ---------- live mock preview ---------- */
@@ -501,55 +561,342 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
     o = o || {};
     return '<text x="' + x + '" y="' + y + '" font-family="Silkscreen, monospace" font-size="8"' + (o.anchor ? ' text-anchor="' + o.anchor + '"' : '') + ' fill="' + (o.fill || "#FFFFFF") + '"' + (w > 0 ? ' textLength="' + w + '" lengthAdjust="spacingAndGlyphs"' : '') + (o.deco ? ' text-decoration="' + o.deco + '"' : '') + '>' + esc(text) + '</text>';
   }
-  function drawMock(b){
-    var sz = S.screen.split("x"), W = parseInt(sz[0], 10) || 480, H = parseInt(sz[1], 10) || 270;
-    var pd = b.pageDialogs[Math.min(activePage, b.pageDialogs.length - 1)];
+  /* A mock model: {title, body:[{text,width,item?}], inputs:[{check,label,boldExtra}|{textbox,label,value,width,lines}|{widget,text,width,slider}], grid:[{text,width,green}], columns, footer:[{text,width}]} */
+  function drawMock(m, label){
+    var sz = S.screen.split("x"), W = parseInt(sz[0], 10) || 480, H = parseInt(sz[1], 10) || 270, gap = 4;
     var s = '<svg id="mock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + (W*2) + '" height="' + (H*2) + '">';
     s += '<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A3B55"/><stop offset="1" stop-color="#101820"/></linearGradient></defs><rect width="' + W + '" height="' + H + '" fill="url(#bg)"/>';
-    if (!pd){ $("mock").outerHTML = s + txt(W/2, H/2, "no questions", 0, {anchor:"middle", fill:"#9AA3AE"}) + '</svg>'; $("mockLine").textContent = ""; return; }
-    var title = S.title || "Poll", tw = measure(title, true).w, tx = (W - (tw + 26)) / 2;
+    if (!m){ $("mock").outerHTML = s + txt(W/2, H/2, "nothing to show", 0, {anchor:"middle", fill:"#9AA3AE"}) + '</svg>'; $("mockLine").textContent = ""; return; }
+    var title = m.title || " ", tw = measure(title, true).w, tx = (W - (tw + 26)) / 2;
     s += txt(tx, 17, title, tw, {fill:"#55FF55", deco:"underline"});
     s += '<rect x="' + (tx + tw + 6) + '" y="6" width="20" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(tx + tw + 16, 20, "!", 0, {anchor:"middle", fill:"#FFD23F"});
-    var rowW = b.rowW, items = [], bodyLines = [], contentH = 0, tooWide = rowW > W;
-    pd.bodyLines.forEach(function(t){ wrap(t, rowW).forEach(function(l){ bodyLines.push(l); }); });
-    if (bodyLines.length){ items.push({kind:"body", h: bodyLines.length * 9}); contentH += bodyLines.length * 9 + 8; }
-    pd.dialog.inputs.forEach(function(inp, idx){
+    var items = [], contentH = 0, tooWide = false;
+    m.body.forEach(function(b){
+      var lines = wrap(b.text || "", b.width), h = b.item ? Math.max(16, lines.length * 9) : lines.length * 9;
+      if (b.width > W) tooWide = true;
+      items.push({kind: b.item ? "item" : "text", lines:lines, h:h}); contentH += h + 8;
+    });
+    m.inputs.forEach(function(inp){
       var it;
-      if (inp.type === "minecraft:boolean"){
-        var joined = inp.label.map(function(p){ return p.text; }).join(""), boldExtra = inp.label.filter(function(p){ return p.bold; }).reduce(function(a, p){ return a + p.text.length; }, 0);
-        var lines = joined.split("\n"); it = {kind:"check", lines:lines, total: measure(joined).w + boldExtra, h: Math.max(17, lines.length * 9)};
-        if (BOX + it.total > W) tooWide = true;
-      } else it = {kind:"widget", inp:inp, q:state.questions[pd.page[idx]], h:20};
+      if (inp.check){ var lines = inp.label.split("\n"); it = {kind:"check", lines:lines, total: measure(inp.label).w + (inp.boldExtra || 0), h: Math.max(17, lines.length * 9)}; if (BOX + it.total > W) tooWide = true; }
+      else if (inp.textbox) it = {kind:"textbox", label:inp.label, value:inp.value, w:inp.width, rows: inp.lines || 1, h: (inp.label ? 11 : 0) + (inp.lines || 1) * 9 + 8};
+      else it = {kind:"widget", text:inp.text, w:inp.width, slider:!!inp.slider, h:20};
+      if (it.w > W) tooWide = true;
       items.push(it); contentH += it.h + 6;
     });
-    items.push({kind:"actions", h:20}); contentH += 20;
+    if (m.grid.length){
+      var cols = Math.max(1, m.columns || 2);
+      for (var i = 0; i < m.grid.length; i += cols){ items.push({kind:"row", buttons: m.grid.slice(i, i + cols), h:20}); contentH += 20 + gap; }
+      contentH -= gap;
+    }
     var bandTop = 33, bandH = H - 66, overflow = contentH > bandH, y = overflow ? bandTop : bandTop + (bandH - contentH) / 2;
+    var button = function(x, yy, b){ s += '<rect x="' + x + '" y="' + yy + '" width="' + b.width + '" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(x + b.width/2, yy + 14, b.text, Math.min(measure(b.text).w, b.width - 8), {anchor:"middle", fill: b.green ? "#55FF55" : "#FFFFFF"}); };
     s += '<clipPath id="clip"><rect x="0" y="' + bandTop + '" width="' + W + '" height="' + bandH + '"/></clipPath><g clip-path="url(#clip)">';
     items.forEach(function(it){
-      if (it.kind === "body"){ bodyLines.forEach(function(l, k){ s += txt(W/2, y + 7 + k*9, l, measure(l).w, {anchor:"middle"}); }); y += it.h + 8; return; }
+      if (it.kind === "text"){ it.lines.forEach(function(l, k){ s += txt(W/2, y + 7 + k*9, l, measure(l).w, {anchor:"middle"}); }); y += it.h + 8; return; }
+      if (it.kind === "item"){
+        var lw = it.lines.reduce(function(a, l){ return Math.max(a, measure(l).w); }, 0), left0 = (W - (20 + lw)) / 2;
+        s += '<rect x="' + left0 + '" y="' + (y + (it.h - 16) / 2) + '" width="16" height="16" fill="#3FA7D6" stroke="#000"/>';
+        it.lines.forEach(function(l, k){ s += txt(left0 + 20, y + 7 + k*9 + (it.h - it.lines.length*9)/2, l, measure(l).w); });
+        y += it.h + 8; return;
+      }
       if (it.kind === "check"){
         var left = (W - (BOX + it.total)) / 2, top = y + (it.h - 17) / 2;
         s += '<rect x="' + left + '" y="' + top + '" width="17" height="17" fill="#202020" stroke="#C0C0C0"/>';
         it.lines.forEach(function(l, k){ var t = l.replace(/\s+$/, ""); s += txt(left + BOX, y + 7 + k*9 + (it.h - it.lines.length*9)/2, t, measure(t).w); });
         y += it.h + 6; return;
       }
-      if (it.kind === "actions"){
-        var acts = pd.dialog.actions, gap = 4, totalW = acts.reduce(function(a, x){ return a + x.width; }, 0) + gap * (acts.length - 1), ax = (W - totalW) / 2;
-        acts.forEach(function(a){ s += '<rect x="' + ax + '" y="' + y + '" width="' + a.width + '" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(ax + a.width/2, y + 14, a.label.text, measure(a.label.text).w, {anchor:"middle", fill: a.label.color === "dark_green" ? "#55FF55" : "#FFFFFF"}); ax += a.width + gap; });
-        y += 20; return;
+      if (it.kind === "textbox"){
+        var lx = (W - it.w) / 2;
+        if (it.label){ s += txt(lx, y + 7, it.label, measure(it.label).w); y += 11; }
+        s += '<rect x="' + lx + '" y="' + y + '" width="' + it.w + '" height="' + (it.rows * 9 + 8) + '" fill="#000" stroke="#A0A0A0"/>';
+        if (it.value) s += txt(lx + 4, y + 13, it.value, Math.min(measure(it.value).w, it.w - 8));
+        y += it.rows * 9 + 8 + 6; return;
       }
-      var inp = it.inp, left2 = (W - rowW) / 2, value = inp.type === "minecraft:number_range" ? String(it.q.min) : inp.options[0].display.text, text = inp.label.text + ": " + value, w2 = Math.min(measure(text).w, rowW - 8);
-      s += '<rect x="' + left2 + '" y="' + y + '" width="' + rowW + '" height="20" fill="#5F5F5F" stroke="#000"/>';
-      if (inp.type === "minecraft:number_range") s += '<rect x="' + (left2 + 1) + '" y="' + (y + 1) + '" width="8" height="18" fill="#8B8B8B" stroke="#000"/>';
-      s += txt(W/2, y + 14, text, w2, {anchor:"middle"});
+      if (it.kind === "row"){
+        var totalW = it.buttons.reduce(function(a, b){ return a + b.width; }, 0) + gap * (it.buttons.length - 1), ax = (W - totalW) / 2;
+        it.buttons.forEach(function(b){ button(ax, y, b); ax += b.width + gap; });
+        y += 20 + gap; return;
+      }
+      var left2 = (W - it.w) / 2;
+      s += '<rect x="' + left2 + '" y="' + y + '" width="' + it.w + '" height="20" fill="#5F5F5F" stroke="#000"/>';
+      if (it.slider) s += '<rect x="' + (left2 + 1) + '" y="' + (y + 1) + '" width="8" height="18" fill="#8B8B8B" stroke="#000"/>';
+      s += txt(W/2, y + 14, it.text, Math.min(measure(it.text).w, it.w - 8), {anchor:"middle"});
       y += 26;
     });
     s += '</g>';
     if (overflow) s += '<rect x="' + (W - 8) + '" y="' + bandTop + '" width="6" height="' + bandH + '" fill="#000"/><rect x="' + (W - 8) + '" y="' + bandTop + '" width="6" height="' + Math.max(12, bandH * bandH / contentH) + '" fill="#C0C0C0"/>';
-    s += '<rect x="' + ((W - 80) / 2) + '" y="' + (H - 27) + '" width="80" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(W/2, H - 13, "Close", measure("Close").w, {anchor:"middle"});
+    if (m.footer.length){ var fw = m.footer.reduce(function(a, b){ return a + b.width; }, 0) + gap * (m.footer.length - 1), fx = (W - fw) / 2; m.footer.forEach(function(b){ button(fx, H - 27, b); fx += b.width + gap; }); }
     if (tooWide) s += '<rect x="0.5" y="0.5" width="' + (W-1) + '" height="' + (H-1) + '" fill="none" stroke="#E08A3A"/>';
     $("mock").outerHTML = s + '</svg>';
-    $("mockLine").textContent = W + "×" + H + " game pixels · page " + (Math.min(activePage, b.pageDialogs.length-1) + 1) + " of " + b.pageDialogs.length + (overflow ? " · scrolls in game" : "") + (tooWide ? " · wider than the screen" : "");
+    $("mockLine").textContent = W + "×" + H + " game pixels · " + label + (overflow ? " · scrolls in game" : "") + (tooWide ? " · wider than the screen" : "");
+  }
+  function pollModel(b, pd){
+    var m = {title: S.title || "Poll", body: pd.bodyLines.map(function(t){ return {text:t, width:b.rowW}; }), inputs:[], grid: pd.dialog.actions.map(function(a){ return {text:a.label.text, width:a.width, green: a.label.color === "dark_green"}; }), columns: pd.dialog.actions.length, footer:[{text:"Close", width:80}]};
+    pd.dialog.inputs.forEach(function(inp, idx){
+      if (inp.type === "minecraft:boolean") m.inputs.push({check:true, label: inp.label.map(function(p){ return p.text; }).join(""), boldExtra: inp.label.filter(function(p){ return p.bold; }).reduce(function(a, p){ return a + p.text.length; }, 0)});
+      else { var q = state.questions[pd.page[idx]]; m.inputs.push({widget:true, slider: inp.type === "minecraft:number_range", text: inp.label.text + ": " + (inp.type === "minecraft:number_range" ? String(q.min) : inp.options[0].display.text), width:b.rowW}); }
+    });
+    return m;
+  }
+
+  /* ---------- dialogs mode: free-form editor ---------- */
+  var TYPES_D = [["notice","Notice"],["confirmation","Confirmation"],["multi_action","Multi action"],["dialog_list","Dialog list"],["server_links","Server links"]];
+  var ACTIONS = [["none","No action"],["run_command","Run command"],["suggest_command","Suggest command"],["open_url","Open URL"],["copy_to_clipboard","Copy to clipboard"],["show_dialog","Open dialog"],["dynamic/run_command","Run command with inputs"],["custom","Custom (mods)"]];
+  var ACTION_VALUE = {run_command:["Command","/say hi"], suggest_command:["Command","/msg "], open_url:["URL","https://"], copy_to_clipboard:["Text",""], show_dialog:["Dialog id","menu"], "dynamic/run_command":["Template · $(key) per input","/me $(msg)"], custom:["Id","mymod:action"]};
+  var INPUT_TYPES = [["text","Text"],["boolean","Checkbox"],["single_option","Options"],["number_range","Slider"]];
+  var fid = 0;
+  function btn(label, action, value, extra){ var b = {label:label, tooltip:"", width:null, action:action || "none", value:value || ""}; if (extra) for (var k in extra) b[k] = extra[k]; return b; }
+  function newInput(type, key){ return {type:type, key:key, label:"", label_visible:true, width:null, initial: type === "boolean" ? false : (type === "text" ? "" : null), max_length:null, multiline:false, max_lines:null, height:null, on_true:"", on_false:"", options:"", start:null, end:null, step:null, label_format:""}; }
+  function newDialog(id, type){ return {id:id, type:type, title:"", external_title:"", body:[], inputs:[], actions:[], ok:btn("Ok", "none", "", {enabled:false}), yes:btn("Yes"), no:btn("No"), exit:btn("Close", "none", "", {enabled:false}), columns:null, button_width:null, dialogs:"", can_close_with_escape:true, pause:true, after_action:"close", pause_menu:false, quick_actions:false, _open:{body:true, buttons:true}}; }
+  function sampleDialogs(){
+    var menu = newDialog("menu", "dialog_list"); menu.title = "Server Menu"; menu.external_title = "Menu"; menu.body = [{kind:"plain_message", text:"Pick a page.", width:null}]; menu.dialogs = "welcome\nrules\nfeedback"; menu.exit.enabled = true; menu.columns = 1; menu.pause_menu = true; menu.quick_actions = true;
+    var welcome = newDialog("welcome", "notice"); welcome.title = "Welcome"; welcome.external_title = "Welcome"; welcome.body = [{kind:"plain_message", text:"Spawn is protected. The shops are east of the fountain.", width:250}, {kind:"item", item:"minecraft:diamond", count:null, description:"Starter kit: talk to the villager at spawn.", dwidth:200, show_decorations:true, show_tooltip:true}]; welcome.ok = btn("Back", "show_dialog", "menu", {enabled:true});
+    var rules = newDialog("rules", "confirmation"); rules.title = "Server Rules"; rules.external_title = "Rules"; rules.body = [{kind:"plain_message", text:"No griefing. No stealing. Be nice in chat.", width:250}]; rules.yes = btn("I agree", "run_command", "/trigger rules_ok"); rules.no = btn("Back", "show_dialog", "menu");
+    var fb = newDialog("feedback", "multi_action"); fb.title = "Feedback"; fb.external_title = "Feedback";
+    var msg = newInput("text", "msg"); msg.label = "Your message"; msg.width = 250; msg.max_length = 100; msg.multiline = true; msg.max_lines = 3;
+    var stars = newInput("number_range", "stars"); stars.label = "Rating"; stars.width = 250; stars.start = 1; stars.end = 5; stars.step = 1; stars.initial = 5;
+    fb.inputs = [msg, stars]; fb.actions = [btn("Send", "dynamic/run_command", "/me rates the server $(stars)/5: $(msg)")]; fb.exit = btn("Back", "show_dialog", "menu", {enabled:true}); fb.columns = 1;
+    return [menu, welcome, rules, fb];
+  }
+  function fld(obj, key, label, kind, x){
+    x = x || {}; var wrap = el("div", {"class":"field"}), id = "f" + (++fid), e;
+    if (kind === "bool"){ var lab = el("label", {"class":"check"}); e = el("input", {type:"checkbox", id:id}); e.checked = !!obj[key]; e.addEventListener("change", function(){ obj[key] = e.checked; if (x.rerender) renderDialogs(); update(); }); lab.appendChild(e); lab.appendChild(document.createTextNode(" " + label)); wrap.appendChild(lab); return wrap; }
+    wrap.appendChild(el("label", {"class":"t", "for":id}, label));
+    if (kind === "select"){ e = el("select", {id:id}); x.options.forEach(function(o){ var op = el("option", {value:o[0]}, o[1]); if (String(obj[key]) === String(o[0])) op.selected = true; e.appendChild(op); }); e.addEventListener("change", function(){ obj[key] = e.value; if (x.rerender) renderDialogs(); update(); }); }
+    else if (kind === "textarea"){ e = el("textarea", {id:id, rows:"1"}); if (x.mono) e.className = "mono"; e.value = obj[key] == null ? "" : obj[key]; e.addEventListener("input", function(){ obj[key] = e.value; autosize(e); update(); }); setTimeout(function(){ autosize(e); }, 0); }
+    else { e = el("input", {id:id, type:"text"}); if (x.ph) e.setAttribute("placeholder", x.ph); e.value = obj[key] == null ? "" : obj[key]; e.addEventListener("input", function(){ if (kind === "num"){ var v = e.value.trim(); obj[key] = v === "" ? null : (isFinite(parseFloat(v)) ? parseFloat(v) : obj[key]); } else obj[key] = e.value; update(); }); }
+    wrap.appendChild(e); return wrap;
+  }
+  function row(cls, kids){ var g = el("div", {"class":cls}); kids.forEach(function(k){ if (k) g.appendChild(k); }); return g; }
+  function sub(d, key, title, kids){
+    var det = el("details", {"class":"sub"}); if (d._open[key]) det.setAttribute("open", "");
+    det.addEventListener("toggle", function(){ d._open[key] = det.open; });
+    det.appendChild(el("summary", {}, title)); det.appendChild(row("body", kids)); return det;
+  }
+  function sel(obj, key, options){ var e = el("select"); options.forEach(function(o){ var op = el("option", {value:o[0]}, o[1]); if (obj[key] === o[0]) op.selected = true; e.appendChild(op); }); e.addEventListener("change", function(){ obj[key] = e.value; renderDialogs(); update(); }); return e; }
+  function topRow(selectEl, onRemove){ var t = el("div", {"class":"top"}); if (selectEl) t.appendChild(selectEl); t.appendChild(el("span", {"class":"sp"})); var rm = el("button", {"class":"ghost small", "type":"button"}, "remove"); rm.addEventListener("click", onRemove); t.appendChild(rm); return t; }
+  function addButton(text, onClick){ var b = el("button", {"class":"small", "type":"button"}, text); b.addEventListener("click", onClick); return b; }
+  function btnFields(b){ return [row("f3", [fld(b, "label", "Label", "text"), fld(b, "tooltip", "Tooltip", "text"), fld(b, "width", "Width · px", "num", {ph:"150"})]), row("f2", [fld(b, "action", "Action", "select", {options:ACTIONS, rerender:true}), b.action !== "none" ? fld(b, "value", ACTION_VALUE[b.action][0], "text", {ph:ACTION_VALUE[b.action][1]}) : null])]; }
+  function btnEditor(b, title, optional){
+    var box = el("div", {"class":"item"});
+    if (optional) box.appendChild(fld(b, "enabled", title, "bool", {rerender:true})); else box.appendChild(el("div", {"class":"t"}, title));
+    if (!optional || b.enabled) btnFields(b).forEach(function(r){ box.appendChild(r); });
+    return box;
+  }
+  function renderDialogs(){
+    var box = $("dialogs"); box.innerHTML = "";
+    state.dialogs.forEach(function(d, i){
+      d._open = d._open || {};
+      var card = el("div", {"class":"qcard small-in"}), top = el("div", {"class":"dtop"});
+      top.appendChild(el("div", {"class":"n"}, String(i + 1)));
+      top.appendChild(fld(d, "id", "Id", "text", {ph:"my_dialog"}));
+      top.appendChild(fld(d, "type", "Type", "select", {options:TYPES_D, rerender:true}));
+      var rm = el("button", {"class":"ghost small", "type":"button"}, "remove"); rm.addEventListener("click", function(){ state.dialogs.splice(i, 1); renderDialogs(); update(); }); top.appendChild(rm);
+      card.appendChild(top);
+      card.appendChild(fld(d, "raw_mode", "Edit as JSON · paste any dialog, the form below is ignored while this is on", "bool", {rerender:true}));
+      if (d.raw_mode){
+        if (!d.raw){ d.raw_mode = false; d.raw = JSON.stringify(dialogJson(d, ident(D.ns, "mypack"), []), null, 2); d.raw_mode = true; }
+        card.appendChild(fld(d, "raw", "Dialog JSON", "textarea", {mono:true}));
+        card.appendChild(sub(d, "options", "Options", [row("f2", [fld(d, "pause_menu", "Button in the pause menu", "bool"), fld(d, "quick_actions", "Quick Actions key (G)", "bool")])]));
+        box.appendChild(card); return;
+      }
+      card.appendChild(row("f2", [fld(d, "title", "Title", "text"), fld(d, "external_title", "External title · used on buttons that link here", "text")]));
+      var bodyKids = d.body.map(function(b, k){
+        var kids = b.kind === "item"
+          ? [row("f2", [fld(b, "item", "Item id", "text", {ph:"minecraft:diamond"}), fld(b, "count", "Count", "num", {ph:"1"})]), fld(b, "description", "Description", "textarea"), row("f3", [fld(b, "dwidth", "Text width · px", "num", {ph:"200"}), fld(b, "show_decorations", "Show count", "bool"), fld(b, "show_tooltip", "Show tooltip", "bool")])]
+          : [fld(b, "text", "Text", "textarea"), fld(b, "width", "Width · px", "num", {ph:"200"})];
+        var item = el("div", {"class":"item"}); item.appendChild(topRow(sel(b, "kind", [["plain_message","Text"],["item","Item"]]), function(){ d.body.splice(k, 1); renderDialogs(); update(); })); kids.forEach(function(x){ if (x) item.appendChild(x); }); return item;
+      });
+      bodyKids.push(row("acts", [addButton("Add text", function(){ d.body.push({kind:"plain_message", text:"", width:null}); renderDialogs(); update(); }), addButton("Add item", function(){ d.body.push({kind:"item", item:"minecraft:diamond", count:null, description:"", dwidth:null, show_decorations:true, show_tooltip:true}); renderDialogs(); update(); })]));
+      card.appendChild(sub(d, "body", "Body · " + d.body.length, bodyKids));
+      var inKids = d.inputs.map(function(inp, k){
+        var kids = [row("f3", [fld(inp, "key", "Key · read as $(key)", "text", {ph:"answer"}), fld(inp, "label", "Label", "text"), inp.type === "boolean" ? null : fld(inp, "width", "Width · px", "num", {ph:"200"})])];
+        if (inp.type === "text") kids.push(row("f3", [fld(inp, "initial", "Initial text", "text"), fld(inp, "max_length", "Max length", "num", {ph:"32"}), fld(inp, "multiline", "Multi-line", "bool", {rerender:true})]), inp.multiline ? row("f2", [fld(inp, "max_lines", "Max lines", "num", {ph:"4"}), fld(inp, "height", "Height · px", "num", {ph:"auto"})]) : null);
+        else if (inp.type === "boolean") kids.push(row("f3", [fld(inp, "on_true", "Value when ticked", "text", {ph:"true"}), fld(inp, "on_false", "Value when clear", "text", {ph:"false"}), fld(inp, "initial", "Ticked at start", "bool")]));
+        else if (inp.type === "single_option") kids.push(fld(inp, "options", "Options · one per line · id=Shown text also works", "textarea"), row("f2", [fld(inp, "initial", "Initial option · 1 = first", "num", {ph:"1"}), fld(inp, "label_visible", "Show label", "bool")]));
+        else kids.push(row("f3", [fld(inp, "start", "Start", "num", {ph:"0"}), fld(inp, "end", "End", "num", {ph:"10"}), fld(inp, "step", "Step", "num", {ph:"any"})]), row("f3", [fld(inp, "initial", "Initial", "num", {ph:"start"}), fld(inp, "label_format", "Label format · translation key", "text", {ph:"options.generic_value"}), fld(inp, "label_visible", "Show label", "bool")]));
+        if (inp.type === "text") kids.push(fld(inp, "label_visible", "Show label", "bool"));
+        var item = el("div", {"class":"item"}); item.appendChild(topRow(sel(inp, "type", INPUT_TYPES), function(){ d.inputs.splice(k, 1); renderDialogs(); update(); })); kids.forEach(function(x){ if (x) item.appendChild(x); }); return item;
+      });
+      inKids.push(row("acts", [addButton("Add input", function(){ d.inputs.push(newInput("text", "input" + (d.inputs.length + 1))); renderDialogs(); update(); })]));
+      card.appendChild(sub(d, "inputs", "Inputs · " + d.inputs.length, inKids));
+      var bk = [];
+      if (d.type === "notice") bk.push(btnEditor(d.ok, "Replace the default Ok button", true));
+      else if (d.type === "confirmation") bk.push(btnEditor(d.yes, "Yes button"), btnEditor(d.no, "No button"));
+      else {
+        if (d.type === "multi_action"){
+          d.actions.forEach(function(b, k){ var item = el("div", {"class":"item"}); item.appendChild(topRow(null, function(){ d.actions.splice(k, 1); renderDialogs(); update(); })); btnFields(b).forEach(function(r){ item.appendChild(r); }); bk.push(item); });
+          bk.push(row("acts", [addButton("Add button", function(){ d.actions.push(btn("Button " + (d.actions.length + 1))); renderDialogs(); update(); })]));
+        }
+        if (d.type === "dialog_list") bk.push(fld(d, "dialogs", "Dialogs to list · one id per line · or a single #tag", "textarea"));
+        if (d.type === "server_links") bk.push(el("p", {"class":"line"}, "Lists the links the server sends. Nothing to set up here."));
+        bk.push(row("f2", [fld(d, "columns", "Columns", "num", {ph:"2"}), d.type === "multi_action" ? null : fld(d, "button_width", "Button width · px", "num", {ph:"150"})]));
+        bk.push(btnEditor(d.exit, "Exit button", true));
+      }
+      card.appendChild(sub(d, "buttons", "Buttons", bk));
+      card.appendChild(sub(d, "options", "Options", [row("f3", [fld(d, "can_close_with_escape", "Esc closes it", "bool"), fld(d, "pause", "Pauses singleplayer", "bool"), fld(d, "after_action", "After a button", "select", {options:[["close","Close the dialog"],["none","Keep it open"],["wait_for_response","Wait for the server"]]})]), row("f2", [fld(d, "pause_menu", "Button in the pause menu", "bool"), fld(d, "quick_actions", "Quick Actions key (G)", "bool")])]));
+      box.appendChild(card);
+    });
+  }
+  function identPath(s){ return (s || "").toLowerCase().replace(/[^a-z0-9_.\/-]/g, ""); }
+  function tc(s){ s = (s == null ? "" : String(s)).trim(); if (/^[\[{]/.test(s)){ try { return JSON.parse(s); } catch(e){} } return s; }
+  function plainText(c){ if (typeof c === "string") return c; if (Array.isArray(c)) return c.map(plainText).join(""); if (c && typeof c === "object") return (c.text || c.translate || "") + (c.extra ? c.extra.map(plainText).join("") : ""); return ""; }
+  function splitLines(s){ return (s || "").split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
+  function btnJson(b, ns, where, warnings){
+    var j = {label: tc(b.label || "")}, v = (b.value || "").trim(), a = b.action || "none";
+    if (b.tooltip) j.tooltip = tc(b.tooltip);
+    if (b.width && b.width !== 150) j.width = b.width;
+    if (a === "run_command" || a === "suggest_command") j.action = {type:"minecraft:" + a, command:v};
+    else if (a === "open_url") j.action = {type:"minecraft:open_url", url:v};
+    else if (a === "copy_to_clipboard") j.action = {type:"minecraft:copy_to_clipboard", value:v};
+    else if (a === "show_dialog") j.action = {type:"minecraft:show_dialog", dialog: v.indexOf(":") >= 0 ? v : ns + ":" + v};
+    else if (a === "dynamic/run_command") j.action = {type:"minecraft:dynamic/run_command", template:v};
+    else if (a === "custom") j.action = {type:"minecraft:custom", id:v};
+    if (a !== "none" && !v) warnings.push(where + ": the action needs a value.");
+    if (a === "show_dialog" && v && v.indexOf(":") < 0 && !state.dialogs.some(function(x){ return identPath(x.id) === v; })) warnings.push(where + ": no dialog named \"" + v + "\" in this pack.");
+    var lw = measure(plainText(j.label)).w, bw = b.width || 150;
+    if (lw > bw - 8) warnings.push(where + ": label is " + lw + " px, wider than its " + bw + " px button.");
+    return j;
+  }
+  function inputJson(inp, where, warnings){
+    var key = (inp.key || "").trim(), j = {type:"minecraft:" + inp.type, key:key, label: tc(inp.label || "")};
+    if (!/^[A-Za-z0-9_]+$/.test(key)) warnings.push(where + ": the key must be letters, digits or _.");
+    if (inp.type !== "boolean" && inp.label_visible === false) j.label_visible = false;
+    if (inp.type !== "boolean" && inp.width && inp.width !== 200) j.width = inp.width;
+    if (inp.type === "text"){
+      if (inp.initial) j.initial = inp.initial;
+      if (inp.max_length && inp.max_length !== 32) j.max_length = inp.max_length;
+      if (inp.multiline){ j.multiline = {}; if (inp.max_lines) j.multiline.max_lines = inp.max_lines; if (inp.height) j.multiline.height = inp.height; }
+    } else if (inp.type === "boolean"){
+      if (inp.initial) j.initial = true;
+      if (inp.on_true && inp.on_true !== "true") j.on_true = inp.on_true;
+      if (inp.on_false && inp.on_false !== "false") j.on_false = inp.on_false;
+    } else if (inp.type === "single_option"){
+      var opts = splitLines(inp.options), init = inp.initial > 0 ? inp.initial : 1;
+      if (!opts.length) warnings.push(where + ": needs at least one option.");
+      j.options = opts.map(function(o, k){ var m = o.split("="), e = m.length > 1 ? {id:m[0].trim(), display: tc(m.slice(1).join("=").trim())} : (k === init - 1 ? {id:o} : o); if (k === init - 1 && k > 0) e.initial = true; return e; });
+    } else {
+      j.start = inp.start == null ? 0 : inp.start; j.end = inp.end == null ? 10 : inp.end;
+      if (inp.step != null) j.step = inp.step;
+      if (inp.initial != null) j.initial = inp.initial;
+      if (inp.label_format && inp.label_format !== "options.generic_value") j.label_format = inp.label_format;
+      if (!(j.end > j.start)) warnings.push(where + ": end must be above start.");
+      if (inp.step != null && !(inp.step > 0)) warnings.push(where + ": step must be positive.");
+    }
+    return j;
+  }
+  function bodyJson(b){
+    if (b.kind === "item"){
+      var j = {type:"minecraft:item", item:{id: b.item || "minecraft:stone"}};
+      if (b.count && b.count !== 1) j.item.count = b.count;
+      if (b.description){ j.description = {contents: tc(b.description)}; if (b.dwidth && b.dwidth !== 200) j.description.width = b.dwidth; }
+      if (b.show_decorations === false) j.show_decorations = false;
+      if (b.show_tooltip === false) j.show_tooltip = false;
+      return j;
+    }
+    var p = {type:"minecraft:plain_message", contents: tc(b.text || "")}; if (b.width && b.width !== 200) p.width = b.width; return p;
+  }
+  function rawJson(d){ try { var j = JSON.parse(d.raw || ""); return j && typeof j === "object" && !Array.isArray(j) ? j : null; } catch(e){ return null; } }
+  function externalTitle(d){ var r = d.raw_mode ? rawJson(d) : null; return r ? plainText(r.external_title || r.title) : plainText(tc(d.external_title || d.title || "")); }
+  function dialogJson(d, ns, warnings){
+    var id = identPath(d.id) || "dialog", where = "Dialog \"" + id + "\"";
+    if (d.raw_mode){
+      var r = rawJson(d);
+      if (!r){ warnings.push(where + ": the JSON does not parse."); return {type:"minecraft:notice", title:"invalid JSON"}; }
+      if (!r.type) warnings.push(where + ": the JSON has no type.");
+      return r;
+    }
+    var j = {type:"minecraft:" + d.type, title: tc(d.title || "")};
+    if (!d.title) warnings.push(where + " has no title.");
+    if (d.external_title) j.external_title = tc(d.external_title);
+    if (d.body.length) j.body = d.body.map(bodyJson);
+    if (d.inputs.length) j.inputs = d.inputs.map(function(inp, k){ return inputJson(inp, where + " input " + (k + 1), warnings); });
+    if (d.can_close_with_escape === false) j.can_close_with_escape = false;
+    if (d.pause === false) j.pause = false;
+    if (d.after_action && d.after_action !== "close") j.after_action = d.after_action;
+    var B = function(b, w){ return btnJson(b, ns, where + " " + w, warnings); };
+    if (d.type === "notice"){ if (d.ok.enabled) j.action = B(d.ok, "Ok button"); }
+    else if (d.type === "confirmation"){ j.yes = B(d.yes, "Yes button"); j.no = B(d.no, "No button"); if (!d.yes.label || !d.no.label) warnings.push(where + ": Yes and No need labels."); }
+    else {
+      if (d.type === "multi_action"){ j.actions = d.actions.map(function(b, k){ return B(b, "button " + (k + 1)); }); if (!d.actions.length) warnings.push(where + " needs at least one button."); }
+      if (d.type === "dialog_list"){
+        var ids = splitLines(d.dialogs);
+        if (ids.length === 1 && ids[0][0] === "#") j.dialogs = ids[0];
+        else { j.dialogs = ids.map(function(x){ return x.indexOf(":") >= 0 ? x : ns + ":" + x; }); ids.forEach(function(x){ if (x[0] === "#") warnings.push(where + ": a #tag must be the only line."); else if (x.indexOf(":") < 0 && !state.dialogs.some(function(y){ return identPath(y.id) === x; })) warnings.push(where + ": no dialog named \"" + x + "\" in this pack."); }); }
+        if (!ids.length) warnings.push(where + " lists no dialogs.");
+      }
+      if (d.exit.enabled) j.exit_action = B(d.exit, "exit button");
+      if (d.columns && d.columns !== 2) j.columns = d.columns;
+      if (d.type !== "multi_action" && d.button_width && d.button_width !== 150) j.button_width = d.button_width;
+    }
+    var keys = d.inputs.map(function(x){ return (x.key || "").trim(); }), seen = {};
+    keys.forEach(function(k){ if (k && seen[k]) warnings.push(where + ": two inputs share the key \"" + k + "\"."); seen[k] = true; });
+    JSON.stringify(j).replace(/\$\(([A-Za-z0-9_]+)\)/g, function(m0, k){ if (keys.indexOf(k) < 0) warnings.push(where + ": $(" + k + ") is not one of its input keys."); return m0; });
+    return j;
+  }
+  function buildDialogs(){
+    var ns = ident(D.ns, "mypack"), warnings = [], files = [], seen = {}, ds = state.dialogs;
+    ds.forEach(function(d){ var id = identPath(d.id); if (!id) warnings.push("Dialog " + (ds.indexOf(d) + 1) + " has no id."); else if (seen[id]) warnings.push("Two dialogs share the id \"" + id + "\"."); seen[id] = true; });
+    var jsons = ds.map(function(d){ return dialogJson(d, ns, warnings); });
+    ds.forEach(function(d, i){ files.push({path:"data/" + ns + "/dialog/" + (identPath(d.id) || "dialog") + ".json", content: JSON.stringify(jsons[i], null, 2)}); });
+    var tagOf = function(flag){ return ds.filter(function(d){ return d[flag]; }).map(function(d){ return ns + ":" + (identPath(d.id) || "dialog"); }); };
+    var pm = tagOf("pause_menu"), qa = tagOf("quick_actions");
+    if (pm.length) files.push({path:"data/minecraft/tags/dialog/pause_screen_additions.json", content: JSON.stringify({values:pm}, null, 2)});
+    if (qa.length) files.push({path:"data/minecraft/tags/dialog/quick_actions.json", content: JSON.stringify({values:qa}, null, 2)});
+    files.push({path:"pack.mcmeta", content: JSON.stringify({pack:{description: ns + " dialogs", min_format:121, max_format:121}}, null, 2)});
+    files.push({path:"README.txt", content: ["Made with Dialog Creator.", "", "Install: drop this zip into saves/<world>/datapacks and enter the world. Dialogs are a registry, so /reload is not enough after changes: leave and re-enter the world.", "", "Open a dialog:"].concat(ds.map(function(d){ return "  /dialog show @s " + ns + ":" + (identPath(d.id) || "dialog"); })).concat(["", pm.length ? "Pause menu button: " + pm.join(", ") + (pm.length > 1 ? " (more than one shows a Custom Options list)" : "") : "Pause menu button: none", qa.length ? "Quick Actions key (default G): " + qa.join(", ") : "Quick Actions key: none", "", "Buttons run their commands as the player who clicks, with that player's permissions."]).join("\n")});
+    files.sort(function(a, b){ return a.path < b.path ? -1 : 1; });
+    return {kind:"dialogs", files:files, warnings:warnings, jsons:jsons, ns:ns, tabs: ds.map(function(d){ return identPath(d.id) || "dialog"; }), zipName: ns + "-dialogs.zip",
+      howto: "Drop the zip into <code>saves/&lt;world&gt;/datapacks</code> and enter the world. Open any dialog with <code>/dialog show @s " + esc(ns) + ":&lt;id&gt;</code>. Or copy the files below one by one."};
+  }
+  function modelFromJson(j){
+    var t = String(j.type || "").replace("minecraft:", ""), m = {title: plainText(j.title), body:[], inputs:[], grid:[], columns: j.columns || 2, footer:[]};
+    (j.body ? (Array.isArray(j.body) ? j.body : [j.body]) : []).forEach(function(b){
+      if (String(b.type || "").replace("minecraft:", "") === "item") m.body.push({item:true, text: plainText(b.description ? b.description.contents : ""), width: (b.description && b.description.width) || 200});
+      else m.body.push({text: plainText(b.contents), width: b.width || 200});
+    });
+    (j.inputs || []).forEach(function(inp){
+      var it = String(inp.type || "").replace("minecraft:", ""), label = plainText(inp.label), shown = inp.label_visible === false ? "" : label, w = inp.width || 200;
+      if (it === "boolean") m.inputs.push({check:true, label:label});
+      else if (it === "text") m.inputs.push({textbox:true, label:shown, value: inp.initial || "", width:w, lines: inp.multiline ? (inp.multiline.max_lines || 3) : 1});
+      else if (it === "single_option"){ var opts = inp.options || [], o = opts.filter(function(x){ return x && x.initial; })[0] || opts[0], first = o == null ? "" : (typeof o === "string" ? o : plainText(o.display || o.id)); m.inputs.push({widget:true, text:(shown ? shown + ": " : "") + first, width:w}); }
+      else if (it === "number_range") m.inputs.push({widget:true, slider:true, text:(shown ? shown + ": " : "") + String(inp.initial != null ? inp.initial : (inp.start || 0)), width:w});
+    });
+    var bt = function(b){ return {text: plainText(b && b.label), width: (b && b.width) || 150}; };
+    if (t === "notice") m.footer = [j.action ? bt(j.action) : {text:"Ok", width:150}];
+    else if (t === "confirmation") m.footer = [bt(j.yes), bt(j.no)];
+    else {
+      var bw = j.button_width || 150;
+      if (t === "multi_action") m.grid = (j.actions || []).map(bt);
+      else if (t === "dialog_list") m.grid = (Array.isArray(j.dialogs) ? j.dialogs : [j.dialogs || ""]).map(function(x){ x = typeof x === "string" ? x : ""; var id = x.indexOf(":") >= 0 ? x.split(":")[1] : x, tgt = state.dialogs.filter(function(y){ return identPath(y.id) === id; })[0]; return {text: tgt ? externalTitle(tgt) : x, width:bw}; });
+      else m.grid = [{text:"Server link", width:bw}, {text:"Server link", width:bw}];
+      if (j.exit_action) m.footer = [bt(j.exit_action)];
+    }
+    return m;
+  }
+  function dialogModel(d){
+    if (d.raw_mode){ var r = rawJson(d); return r ? modelFromJson(r) : {title:"invalid JSON", body:[], inputs:[], grid:[], columns:1, footer:[]}; }
+    var m = {title: plainText(tc(d.title || "")), body:[], inputs:[], grid:[], columns: d.columns || 2, footer:[]};
+    d.body.forEach(function(b){ if (b.kind === "item") m.body.push({item:true, text: plainText(tc(b.description || "")), width: b.dwidth || 200}); else m.body.push({text: plainText(tc(b.text || "")), width: b.width || 200}); });
+    d.inputs.forEach(function(inp){
+      var label = plainText(tc(inp.label || "")), w = inp.width || 200, shown = inp.label_visible === false ? "" : label;
+      if (inp.type === "boolean") m.inputs.push({check:true, label:label});
+      else if (inp.type === "text") m.inputs.push({textbox:true, label:shown, value: inp.initial || "", width:w, lines: inp.multiline ? (inp.max_lines || 3) : 1});
+      else if (inp.type === "single_option"){ var opts = splitLines(inp.options), first = (opts[(inp.initial > 0 ? inp.initial : 1) - 1] || "").split("=").pop(); m.inputs.push({widget:true, text: (shown ? shown + ": " : "") + first, width:w}); }
+      else m.inputs.push({widget:true, slider:true, text: (shown ? shown + ": " : "") + String(inp.initial != null ? inp.initial : (inp.start || 0)), width:w});
+    });
+    var bt = function(b){ return {text: plainText(tc(b.label || "")), width: b.width || 150}; };
+    if (d.type === "notice") m.footer = [d.ok.enabled ? bt(d.ok) : {text:"Ok", width:150}];
+    else if (d.type === "confirmation") m.footer = [bt(d.yes), bt(d.no)];
+    else {
+      var bw = d.button_width || 150;
+      if (d.type === "multi_action") m.grid = d.actions.map(bt);
+      else if (d.type === "dialog_list") m.grid = splitLines(d.dialogs).map(function(x){ var t = state.dialogs.filter(function(y){ return identPath(y.id) === x; })[0]; return {text: t ? externalTitle(t) : x, width:bw}; });
+      else m.grid = [{text:"Server link", width:bw}, {text:"Server link", width:bw}];
+      if (d.exit.enabled) m.footer = [bt(d.exit)];
+    }
+    return m;
   }
 
   /* ---------- outputs ---------- */
@@ -566,14 +913,14 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
       btn.addEventListener("click", function(ev){ ev.preventDefault(); ev.stopPropagation(); copy(f.content, btn); });
       sm.appendChild(btn); d.appendChild(sm); d.appendChild(el("pre", {}, f.content)); box.appendChild(d);
     });
-    $("howto").innerHTML = "Drop the zip into <code>saves/&lt;world&gt;/datapacks</code>, enter the world, run <code>/function " + esc(b.fn("announce")) + "</code> once to post the [Vote] and [Results] links. Or copy the files below one by one.";
+    $("howto").innerHTML = b.howto;
   }
   $("download").addEventListener("click", function(){
     if (!lastBuild || typeof JSZip === "undefined"){ alert("The zip library did not load. Copy the files one by one instead."); return; }
     var zip = new JSZip();
     lastBuild.files.forEach(function(f){ zip.file(f.path, f.content); });
     zip.generateAsync({type:"blob"}).then(function(blob){
-      var name = lastBuild.pid + "-poll.zip";
+      var name = lastBuild.zipName;
       var hosted = window.claude && typeof window.claude.use === "function" ? window.claude.use("downloads") : Promise.resolve(null);
       hosted.then(function(dl){
         if (dl) return dl.save({filename:name, data:blob}).catch(function(e){ if (!e || e.code !== "declined") alert("Could not save the zip here. Copy the files one by one instead."); });
@@ -582,25 +929,38 @@ details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:
       });
     });
   });
-  function renderTabs(b){
+  function renderTabs(labels){
     var t = $("tabs"); t.innerHTML = "";
-    if (b.pages.length < 2) return;
-    b.pages.forEach(function(_, p){ var btn = el("button", {"class":"tab" + (p === activePage ? " active" : ""), "type":"button"}, "Page " + (p+1)); btn.addEventListener("click", function(){ activePage = p; update(); }); t.appendChild(btn); });
+    if (labels.length < 2) return;
+    labels.forEach(function(name, p){ var b = el("button", {"class":"tab" + (p === activePage ? " active" : ""), "type":"button"}, name); b.addEventListener("click", function(){ activePage = p; update(); }); t.appendChild(b); });
   }
+  function setProductUI(){
+    var dlg = state.mode === "dialogs";
+    $("modePoll").classList.toggle("active", !dlg); $("modeDialogs").classList.toggle("active", dlg);
+    $("pollLeft").classList.toggle("hidden", dlg); $("dialogLeft").classList.toggle("hidden", !dlg);
+  }
+  $("modePoll").addEventListener("click", function(){ state.mode = "poll"; activePage = 0; setProductUI(); update(); });
+  $("modeDialogs").addEventListener("click", function(){ state.mode = "dialogs"; activePage = 0; setProductUI(); update(); });
   function update(){
     try { localStorage.setItem("dca-state2", JSON.stringify(state)); } catch(e){}
-    var b = build(); lastBuild = b;
-    if (activePage >= b.pages.length) activePage = 0;
-    $("statLine").textContent = b.pages.length + (b.pages.length === 1 ? " page" : " pages") + " · rows " + b.rowW + " px · " + (b.trig ? "trigger" : "function") + " submit" + (b.pass ? " · pass at " + b.pass + "%" : "");
-    b.widthInfo.forEach(function(wi, i){ var e = $("w"+i); if (e){ e.textContent = wi.w + " px"; e.style.color = wi.w > wi.limit ? "var(--accent)" : ""; } });
+    var b = state.mode === "dialogs" ? buildDialogs() : buildPoll(); lastBuild = b;
+    if (activePage >= b.tabs.length) activePage = 0;
+    if (b.kind === "poll"){
+      $("statLine").textContent = b.pages.length + (b.pages.length === 1 ? " page" : " pages") + " · rows " + b.rowW + " px · " + (b.trig ? "trigger" : "function") + " submit" + (b.pass ? " · pass at " + b.pass + "%" : "");
+      b.widthInfo.forEach(function(wi, i){ var e = $("w"+i); if (e){ e.textContent = wi.w + " px"; e.style.color = wi.w > wi.limit ? "var(--accent)" : ""; } });
+    } else $("dstat").textContent = b.tabs.length + (b.tabs.length === 1 ? " dialog" : " dialogs") + " · namespace " + b.ns;
     var warn = $("warnings"); warn.innerHTML = "";
     b.warnings.forEach(function(w){ warn.appendChild(el("div", {"class":"warn"}, w)); });
     warn.classList.toggle("hidden", b.warnings.length === 0);
-    renderTabs(b); drawMock(b); renderFiles(b);
+    renderTabs(b.tabs);
+    var model = null, label = "";
+    if (b.kind === "poll" && b.pageDialogs.length){ model = pollModel(b, b.pageDialogs[activePage]); label = "page " + (activePage + 1) + " of " + b.tabs.length; }
+    if (b.kind === "dialogs" && state.dialogs.length){ model = dialogModel(state.dialogs[activePage]); label = "dialog " + b.tabs[activePage]; }
+    drawMock(model, label); renderFiles(b);
   }
 
-  window.__dca = {state:state, build:build, update:update, renderQuestions:renderQuestions, measure:measure};
-  renderQuestions(); update();
+  window.__dca = {state:state, build:function(){ return state.mode === "dialogs" ? buildDialogs() : buildPoll(); }, buildPoll:buildPoll, buildDialogs:buildDialogs, update:update, renderQuestions:renderQuestions, renderDialogs:renderDialogs, measure:measure};
+  renderQuestions(); renderDialogs(); setProductUI(); update();
 })();
 </script>
 </body>
