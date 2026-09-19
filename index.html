@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Dialog Creator turns poll questions into a complete Minecraft dialog data pack: aligned checkboxes, pages, pre-filled answers, tallies and a results screen.">
+<title>Dialog Creator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Silkscreen&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --ground:#111111; --panel:#181818; --panel-2:#1F1F1F; --line:#2C2C2C; --line-2:#3C3C3C;
+  --ink:#EAEAEA; --ink-2:#B4B4B4; --muted:#858585;
+  --accent:#E08A3A; --accent-ink:#111111; --impulse:#E08A3A; --chain:#4FA8A0; --repeat:#9A72D6;
+  --pixel:"Jersey 10",monospace; --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; --mono:"IBM Plex Mono",Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+.wrap{margin:0;padding:28px clamp(16px,3vw,40px) 48px;display:flex;flex-direction:column;gap:20px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:start}
+@media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:4px 0 0}
+h1{font:400 clamp(36px,4.5vw,54px)/0.9 var(--pixel);text-transform:uppercase;margin:0;letter-spacing:.03em;text-wrap:balance}
+.rule{width:48px;height:4px;background:var(--accent)}
+.lede{margin:0;color:var(--muted);max-width:64ch;font-size:14px;line-height:1.55;text-wrap:balance}
+section{background:var(--panel);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:12px}
+h2{display:flex;align-items:center;gap:10px;margin:0;font:400 22px/1 var(--pixel);text-transform:uppercase;letter-spacing:.02em}
+.cb{width:10px;height:10px;flex:none}
+.cb.impulse{background:var(--impulse)}.cb.chain{background:var(--chain)}.cb.repeat{background:var(--repeat)}
+.t{font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px}
+input[type=text],textarea,select{width:100%;font:14px/1.5 var(--body);color:var(--ink);background:var(--ground);border:1px solid var(--line-2);padding:8px 10px;border-radius:0}
+select{appearance:none;-webkit-appearance:none;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+textarea{resize:none;min-height:40px;overflow:hidden}
+.qlist{display:flex;flex-direction:column;gap:10px}
+.qcard{border:1px solid var(--line);background:var(--ground);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.qtop{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.qtop .n{font:400 22px/1 var(--pixel);color:var(--muted)}
+.qtop select{width:auto;min-width:150px;padding:6px 28px 6px 10px;font-size:13px;justify-self:start}
+.qtop .w{font:400 11px/1 var(--mono);color:var(--muted);white-space:nowrap}
+.qextra{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.qextra .field{gap:4px}
+.qextra input{padding:6px 8px;font-size:13px}
+.pagemark{font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--chain);padding:4px 0 0}
+button{font:500 13px/1 var(--body);color:var(--ink);background:var(--panel-2);border:1px solid var(--line-2);padding:9px 12px;cursor:pointer;border-radius:0}
+button:hover{border-color:var(--accent);color:#fff}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.primary:hover{background:#EDA05A}
+button.small{padding:6px 9px;font-size:12px}
+button.ghost{background:none;border-color:transparent;color:var(--muted);padding:6px}
+button.ghost:hover{color:var(--ink);border-color:transparent}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:480px){.opts{grid-template-columns:minmax(0,1fr)}}
+.check{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2);cursor:pointer}
+.check input{width:15px;height:15px;margin:0;accent-color:var(--accent)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tab{font:400 18px/1 var(--pixel);text-transform:uppercase;padding:7px 12px 5px;background:var(--ground);border:1px solid var(--line-2);color:var(--ink-2)}
+.tab.active{border-color:var(--chain);color:var(--ink)}
+.mock{background:var(--ground);border:1px solid var(--line);padding:10px;overflow-x:auto}
+.mock svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.files{display:flex;flex-direction:column;gap:6px}
+.file{border:1px solid var(--line);background:var(--ground)}
+.file summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;font:12.5px/1.4 var(--mono);color:var(--ink-2)}
+.file summary::-webkit-details-marker{display:none}
+.file summary span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file pre{border:0;border-top:1px solid var(--line);max-height:320px}
+pre{margin:0;background:var(--ground);color:var(--ink);font:12.5px/1.55 var(--mono);padding:14px;border:1px solid var(--line);overflow:auto;white-space:pre}
+.warn{border:1px solid var(--accent);color:var(--ink-2);padding:8px 12px;font-size:13px}
+.line{font-size:13px;color:var(--muted);margin:0}
+code{font:.9em var(--mono);color:var(--ink-2)}
+details.box{border:1px solid var(--line);background:var(--panel)}
+details.box>summary{list-style:none;cursor:pointer;padding:12px 16px;font:400 20px/1 var(--pixel);text-transform:uppercase;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
+details.box>summary::-webkit-details-marker{display:none}
+details.box>summary::after{content:"+";margin-left:auto;color:var(--muted);font:400 22px/1 var(--pixel)}
+details.box[open]>summary::after{content:"–"}
+details.box .body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="head">
+    <h1>Dialog Creator</h1>
+    <span class="rule" aria-hidden="true"></span>
+    <p class="lede">Write the questions, get a complete poll data pack: aligned inputs, pages with Back and Next, every player's previous answers pre-filled, live tallies and a results screen.</p>
+  </header>
+
+  <div class="grid">
+  <div class="col">
+  <section>
+    <h2><span class="cb impulse" aria-hidden="true"></span>Questions</h2>
+    <div id="questions" class="qlist"></div>
+    <div class="row"><button id="add" type="button">Add question</button><span class="t" id="statLine"></span></div>
+  </section>
+
+  <details class="box" open>
+    <summary>Settings</summary>
+    <div class="body">
+      <div class="field"><label class="t" for="title">Title</label><input id="title" type="text"></div>
+      <div class="field"><label class="t" for="intro">Intro text · blank for none</label><textarea id="intro" rows="2"></textarea></div>
+      <div class="opts">
+        <div class="field"><label class="t" for="ns">Namespace</label><input id="ns" type="text"></div>
+        <div class="field"><label class="t" for="pid">Poll id</label><input id="pid" type="text"></div>
+        <div class="field"><label class="t" for="rowW">Row width · px</label><input id="rowW" type="text"></div>
+        <div class="field"><label class="t" for="perPage">Questions per page</label><input id="perPage" type="text"></div>
+        <div class="field"><label class="t" for="submit">Submission</label><select id="submit"><option value="trigger">Trigger · any player · yes/no and choice</option><option value="function">Function · ops or singleplayer · adds sliders</option></select></div>
+        <div class="field"><label class="t" for="screen">Preview screen</label><select id="screen"><option value="480x270">GUI scale 4 on 1080p · 480×270</option><option value="640x360">GUI scale 3 on 1080p · 640×360</option><option value="960x540">GUI scale 2 on 1080p · 960×540</option></select></div>
+        <div class="field"><label class="t" for="pass">Pass threshold · Yes % · blank for none</label><input id="pass" type="text"></div>
+      </div>
+      <label class="check"><input id="shortLabels" type="checkbox"> Short labels (Q1, Q2…) with the questions listed in the body</label>
+    </div>
+  </details>
+  </div>
+
+  <div class="col">
+  <section>
+    <div class="row"><h2><span class="cb chain" aria-hidden="true"></span>Preview</h2><div class="tabs" id="tabs"></div></div>
+    <div id="warnings" class="hidden" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="mock"><svg id="mock" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <p class="line" id="mockLine"></p>
+  </section>
+
+  <section>
+    <div class="row"><h2><span class="cb repeat" aria-hidden="true"></span>Data pack</h2><button class="primary" type="button" id="download">Download .zip</button></div>
+    <p class="line" id="howto"></p>
+    <div class="files" id="files"></div>
+  </section>
+  </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ---------- font metrics: advances measured from the game's ascii.png, newline calibrated in game ---------- */
+  var NARROW = {" ":4,"'":2,"!":2,",":2,".":2,":":2,";":2,"|":2,"i":2,"`":3,"l":3,"\"":4,"(":4,")":4,"*":4,"[":4,"]":4,"{":4,"}":4,"t":4,"I":4,"<":5,">":5,"f":5,"k":5,"@":7,"~":7};
+  var NEWLINE = 8, BOLD_SPACE = 5, BOX = 21;
+  function advance(c){ return NARROW.hasOwnProperty(c) ? NARROW[c] : 6; }
+  function measure(s, bold){
+    var w = 0, odd = [];
+    for (var i = 0; i < s.length; i++){
+      var c = s[i];
+      if (c === "\n"){ w += NEWLINE; continue; }
+      if (c === "\r") continue;
+      if (c.charCodeAt(0) > 127 && odd.indexOf(c) < 0) odd.push(c);
+      w += advance(c) + (bold ? 1 : 0);
+    }
+    return {w:w, odd:odd};
+  }
+  function wrap(text, maxW){ /* word wrap like the game's body text */
+    var out = [];
+    text.split("\n").forEach(function(par){
+      var line = "";
+      par.split(" ").forEach(function(word){
+        var cand = line ? line + " " + word : word;
+        if (measure(cand).w <= maxW || !line) line = cand; else { out.push(line); line = word; }
+      });
+      out.push(line);
+    });
+    return out;
+  }
+  function repeat(s, n){ var o = ""; for (var i = 0; i < n; i++) o += s; return o; }
+  function pad(text, target){ /* trailing spaces (4 px) plus bold spaces (5 px) so the label measures exactly target */
+    var p = target - measure(text).w; if (p < 0) return [{text:text}];
+    var bold = p % 4, normal = Math.max(0, (p - BOLD_SPACE * bold) / 4);
+    var parts = [{text: text + repeat(" ", normal)}];
+    if (bold > 0) parts.push({text: repeat(" ", bold), bold: true});
+    return parts;
+  }
+
+  /* ---------- state ---------- */
+  var state = {
+    questions: [
+      {type:"check", text:"Should we build a Nether hub?"},
+      {type:"check", text:"Keep the current spawn?"},
+      {type:"choice", text:"Next group build?", options:["Castle","Farm","City"]},
+      {type:"check", text:"Weekly events?"}
+    ],
+    settings: {title:"Poll Booth", intro:"Votes can be changed anytime before polling ends.", ns:"poll", pid:"booth", rowW:"320", perPage:"4", submit:"trigger", screen:"480x270", pass:"70", shortLabels:false}
+  };
+  try {
+    var saved = JSON.parse(localStorage.getItem("dca-state2") || "null");
+    if (saved && saved.questions && saved.questions.length){
+      state.questions = saved.questions;
+      state.questions.forEach(function(q){ if (q.type === "yesno") q.type = saved.mode === "buttons" ? "button" : "check"; }); /* older saves had one global style */
+      if (saved.settings) for (var k in saved.settings) state.settings[k] = saved.settings[k];
+    }
+  } catch(e){}
+  function isYN(q){ return q.type === "check" || q.type === "button"; }
+  var S = state.settings, activePage = 0, lastBuild = null;
+
+  function el(tag, attrs, text){ var e = document.createElement(tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  function $(id){ return document.getElementById(id); }
+  function autosize(ta){ ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; }
+  window.addEventListener("resize", function(){ Array.prototype.forEach.call(document.querySelectorAll("textarea"), autosize); });
+  function ident(s, fallback){ s = (s || "").toLowerCase().replace(/[^a-z0-9_.-]/g, ""); return s || fallback; }
+  function num(v, fallback){ var n = parseInt(v, 10); return isFinite(n) && n > 0 ? n : fallback; }
+  function fnum(v, fallback){ var n = parseFloat(v); return isFinite(n) ? n : fallback; }
+  function flat(s){ return s.replace(/\n/g, " "); }
+
+  /* ---------- settings ---------- */
+  ["title","intro","ns","pid","rowW","perPage","submit","screen","pass"].forEach(function(id){
+    var e = $(id); e.value = S[id];
+    e.addEventListener(e.tagName === "SELECT" ? "change" : "input", function(){ S[id] = e.value; if (id === "perPage" || id === "submit") renderQuestions(); update(); });
+  });
+  $("shortLabels").checked = !!S.shortLabels;
+  $("shortLabels").addEventListener("change", function(){ S.shortLabels = $("shortLabels").checked; update(); });
+
+  /* ---------- question editor ---------- */
+  var TYPES = [["check","Yes / No · checkbox"],["button","Yes / No · buttons"],["choice","Multiple choice"],["slider","Slider"]];
+  function renderQuestions(){
+    var qEl = $("questions"); qEl.innerHTML = "";
+    var pages = paginate();
+    state.questions.forEach(function(q, i){
+      var pageIndex = pages.findIndex(function(p){ return p.indexOf(i) >= 0; });
+      if (pages.length > 1 && pages[pageIndex][0] === i) qEl.appendChild(el("div", {"class":"pagemark"}, "Page " + (pageIndex + 1)));
+      var card = el("div", {"class":"qcard"}), top = el("div", {"class":"qtop"});
+      top.appendChild(el("div", {"class":"n"}, "Q" + (i+1)));
+      var sel = el("select", {"aria-label":"Type of question " + (i+1)});
+      TYPES.forEach(function(t){ var o = el("option", {"value":t[0]}, t[1]); if (q.type === t[0]) o.selected = true; sel.appendChild(o); });
+      sel.addEventListener("change", function(){
+        q.type = sel.value;
+        if (q.type === "choice" && !q.options) q.options = ["Option A","Option B"];
+        if (q.type === "slider"){ if (q.min == null) q.min = 1; if (q.max == null) q.max = 10; if (q.step == null) q.step = 1; }
+        renderQuestions(); update();
+      });
+      top.appendChild(sel);
+      top.appendChild(el("div", {"class":"w", "id":"w"+i}, ""));
+      var rm = el("button", {"class":"ghost small", "type":"button", "aria-label":"Remove question " + (i+1)}, "remove");
+      rm.addEventListener("click", function(){ if (state.questions.length > 1){ state.questions.splice(i,1); renderQuestions(); update(); } });
+      top.appendChild(rm);
+      card.appendChild(top);
+      var ta = el("textarea", {"rows":"1", "aria-label":"Question " + (i+1), "id":"q"+i});
+      ta.value = q.text; ta.addEventListener("input", function(){ q.text = ta.value; autosize(ta); update(); });
+      setTimeout(function(){ autosize(ta); }, 0);
+      card.appendChild(ta);
+      if (q.type === "choice"){
+        var f = el("div", {"class":"field"}); f.appendChild(el("label", {"class":"t"}, "Options · one per line · up to 9"));
+        var ot = el("textarea", {"rows":"2", "aria-label":"Options for question " + (i+1)}); ot.value = (q.options || []).join("\n");
+        ot.addEventListener("input", function(){ q.options = ot.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean); autosize(ot); update(); });
+        setTimeout(function(){ autosize(ot); }, 0);
+        f.appendChild(ot); card.appendChild(f);
+      }
+      if (q.type === "slider"){
+        var ex = el("div", {"class":"qextra"});
+        [["min","Min"],["max","Max"],["step","Step"]].forEach(function(p){
+          var fld = el("div", {"class":"field"}); fld.appendChild(el("label", {"class":"t"}, p[1]));
+          var inp = el("input", {"type":"text", "aria-label": p[1] + " for question " + (i+1)}); inp.value = q[p[0]];
+          inp.addEventListener("input", function(){ q[p[0]] = fnum(inp.value, q[p[0]]); update(); });
+          fld.appendChild(inp); ex.appendChild(fld);
+        });
+        card.appendChild(ex);
+      }
+      qEl.appendChild(card);
+    });
+  }
+  $("add").addEventListener("click", function(){ state.questions.push({type:"check", text:""}); renderQuestions(); update(); var last = $("q" + (state.questions.length-1)); if (last) last.focus(); });
+
+  /* ---------- pages: a trigger number holds a lead digit 1 plus at most 9 answer digits ---------- */
+  function paginate(){
+    var per = num(S.perPage, 4), budget = S.submit === "trigger" ? 9 : 999, pages = [], cur = [];
+    state.questions.forEach(function(q, i){
+      if (cur.length && (cur.length >= per || cur.length >= budget)){ pages.push(cur); cur = []; }
+      cur.push(i);
+    });
+    if (cur.length) pages.push(cur);
+    return pages;
+  }
+
+  /* ---------- SNBT for macro lines; placeholders carry a static value for the plain JSON copies ---------- */
+  function ph(macro, staticValue){ return {__raw: macro, __static: staticValue}; }
+  function snbt(v){
+    if (v && v.__raw !== undefined) return v.__raw;
+    if (Array.isArray(v)) return "[" + v.map(snbt).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).map(function(k){ return JSON.stringify(k) + ":" + snbt(v[k]); }).join(",") + "}";
+    if (typeof v === "string") return JSON.stringify(v);
+    return String(v);
+  }
+  function strip(v){
+    if (v && v.__raw !== undefined) return v.__static;
+    if (Array.isArray(v)) return v.map(strip);
+    if (v && typeof v === "object"){ var o = {}; Object.keys(v).forEach(function(k){ o[k] = strip(v[k]); }); return o; }
+    return v;
+  }
+
+  /* ---------- generator ---------- */
+  function build(){
+    var ns = ident(S.ns, "poll"), pid = ident(S.pid, "booth"), rowW = num(S.rowW, 320), trig = S.submit === "trigger", shortL = !!S.shortLabels;
+    var qs = state.questions, pages = paginate(), warnings = [], odd = [], files = [], pageDialogs = [];
+    var fn = function(name){ return ns + ":" + pid + "/" + name; };
+    var obj = function(name){ return pid + "." + name; };
+    var st = ns + ":" + pid, tally = obj("tally"), cst = obj("const"), ANY = " matches -2147483648..";
+    var title = S.title || "Poll", intro = (S.intro || "").trim(), pass = Math.min(100, num(S.pass, 0)); /* 0 = no pass/fail verdict */
+
+    qs.forEach(function(q, i){
+      measure(q.text).odd.forEach(function(c){ if (odd.indexOf(c) < 0) odd.push(c); });
+      if (/\$\(/.test(q.text + (q.options || []).join(""))) warnings.push("Q" + (i+1) + " contains \"$(\", which the game reads as a macro variable. Remove it.");
+      if (q.type === "choice" && (!q.options || q.options.length < 2)) warnings.push("Q" + (i+1) + " needs at least two options.");
+      if (q.type === "choice" && q.options && q.options.length > 9) warnings.push("Q" + (i+1) + " has more than 9 options; only the first 9 are used.");
+      if (q.type === "slider" && trig) warnings.push("Q" + (i+1) + " is a slider, which Trigger submission cannot send (the game sends 7.0, not a whole number). Switch Submission to Function, or make it a multiple choice with the numbers as options.");
+      if (q.type === "slider" && !(q.max > q.min)) warnings.push("Q" + (i+1) + ": max must be above min.");
+    });
+    if (odd.length) warnings.push("Assumed 6 px wide: " + odd.join(" ") + ". Check alignment in game.");
+
+    var widthInfo = qs.map(function(q, i){
+      var label = shortL ? "Q" + (i+1) : q.text;
+      if (q.type === "check") return {w: measure(label).w, limit: rowW - BOX - 12, note: "the whole dialog spills off screen"};
+      var longest = q.type === "button" ? "Yes" : q.type === "slider" ? String(q.max) : (q.options || []).reduce(function(a, b){ return measure(b).w > measure(a).w ? b : a; }, "");
+      return {w: measure(flat(label) + ": " + longest).w, limit: rowW - 8, note: "the text scrolls inside the button"};
+    });
+    widthInfo.forEach(function(wi, i){ if (wi.w > wi.limit) warnings.push("Q" + (i+1) + " measures " + wi.w + " px but only " + wi.limit + " px fit its " + rowW + " px row, so " + wi.note + ". Shorten it, widen the rows, or turn on short labels."); });
+
+    /* one dialog per page; $(...) placeholders are filled by show_N from the player's saved answers */
+    pages.forEach(function(page, p){
+      var last = p === pages.length - 1, inputs = [], bodyLines = [], keys = [];
+      if (p === 0 && intro) bodyLines.push(intro);
+      if (pages.length > 1) bodyLines.push("Page " + (p+1) + " of " + pages.length);
+      if (shortL) page.forEach(function(i){ bodyLines.push("Q" + (i+1) + ": " + flat(qs[i].text)); });
+      page.forEach(function(i){
+        var q = qs[i], k = i+1, label = shortL ? "Q" + k : q.text, key = "ans_" + k; keys.push(key);
+        if (q.type === "check") inputs.push({type:"minecraft:boolean", key:key, on_true:"2", on_false:"1", initial: ph("$(q" + k + ")", false), label: pad(label, rowW - BOX)});
+        else if (q.type === "button") inputs.push({type:"minecraft:single_option", key:key, width:rowW, label:{text:flat(label)}, options:[{id:"1", display:{text:"No"}, initial: ph("$(q" + k + "_1)", true)}, {id:"2", display:{text:"Yes"}, initial: ph("$(q" + k + "_2)", false)}]});
+        else if (q.type === "choice") inputs.push({type:"minecraft:single_option", key:key, width:rowW, label:{text:flat(label)}, options:(q.options || []).slice(0, 9).map(function(o, j){ return {id:String(j+1), display:{text:o}, initial: ph("$(q" + k + "_" + (j+1) + ")", j === 0)}; })});
+        else inputs.push({type:"minecraft:number_range", key:key, width:rowW, label:{text:flat(label)}, start:q.min, end:q.max, step:q.step, initial: ph("$(q" + k + ")", q.min)});
+      });
+      var template = trig ? "/trigger " + obj("p" + (p+1)) + " set 1" + keys.map(function(k){ return "$(" + k + ")"; }).join("")
+                          : "/function " + fn("record_" + (p+1)) + " {" + page.map(function(i){ return "a" + (i+1) + ":\"$(ans_" + (i+1) + ")\""; }).join(",") + "}";
+      var actions = [];
+      if (p > 0) actions.push({label:{text:"Back"}, width: Math.floor(rowW / 2) - 2, action:{type:"minecraft:run_command", command:"/trigger " + obj("back") + " set " + p}});
+      actions.push({label:{text: last ? "Submit" : "Next", color: last ? "dark_green" : "white"}, width: p > 0 ? Math.floor(rowW / 2) - 2 : rowW, action:{type:"minecraft:dynamic/run_command", template: ph("'$(tpl)'", template)}}); /* a macro line cannot hold a literal $(, so the template travels through storage */
+      var dialog = {type:"minecraft:multi_action", title:{text:title, color:"green", bold:true, underlined:true}};
+      if (bodyLines.length) dialog.body = [{type:"minecraft:plain_message", width:rowW, contents:{text: bodyLines.join("\n")}}];
+      dialog.inputs = inputs; dialog.columns = actions.length; dialog.can_close_with_escape = true;
+      dialog.exit_action = {label:{text:"Close"}, width:80}; dialog.actions = actions;
+      pageDialogs.push({dialog:dialog, bodyLines:bodyLines, page:page, last:last, template:template});
+    });
+
+    var L, add = function(path, lines){ files.push({path:path, content: Array.isArray(lines) ? lines.join("\n") : lines}); };
+    var fpath = function(name){ return "data/" + ns + "/function/" + pid + "/" + name + ".mcfunction"; };
+
+    L = ["scoreboard objectives add " + obj("open") + " trigger", "scoreboard objectives add " + obj("back") + " trigger", "scoreboard objectives add " + obj("results") + " trigger"];
+    if (trig) pages.forEach(function(_, p){ L.push("scoreboard objectives add " + obj("p" + (p+1)) + " trigger"); });
+    L.push("scoreboard objectives add " + obj("v") + " dummy", "scoreboard objectives add " + obj("d") + " dummy", "scoreboard objectives add " + cst + " dummy", "scoreboard objectives add " + tally + " dummy");
+    qs.forEach(function(q, i){ L.push("scoreboard objectives add " + obj("q" + (i+1)) + " dummy"); });
+    L.push("scoreboard players set #10 " + cst + " 10", "scoreboard players set #100 " + cst + " 100");
+    qs.forEach(function(q, i){
+      var k = i+1; L.push("scoreboard players add #q" + k + "_n " + tally + " 0");
+      if (isYN(q)) L.push("scoreboard players add #q" + k + "_yes " + tally + " 0");
+      if (q.type === "choice") (q.options || []).slice(0,9).forEach(function(_, j){ L.push("scoreboard players add #q" + k + "_o" + (j+1) + " " + tally + " 0"); });
+      if (q.type === "slider") L.push("scoreboard players add #q" + k + "_sum " + tally + " 0");
+    });
+    add(fpath("load"), L);
+
+    L = ["scoreboard players enable @a " + obj("open"), "scoreboard players enable @a " + obj("back"), "scoreboard players enable @a " + obj("results")];
+    if (trig) pages.forEach(function(_, p){ L.push("scoreboard players enable @a " + obj("p" + (p+1))); });
+    L.push("execute as @a[scores={" + obj("open") + "=1..}] run function " + fn("open"));
+    L.push("execute as @a[scores={" + obj("back") + "=1..}] run function " + fn("back"));
+    L.push("execute as @a[scores={" + obj("results") + "=1..}] run function " + fn("results"));
+    if (trig) pages.forEach(function(_, p){ L.push("execute as @a[scores={" + obj("p" + (p+1)) + "=1..}] run function " + fn("record_" + (p+1))); });
+    add(fpath("tick"), L);
+
+    add(fpath("open"), ["scoreboard players set @s " + obj("open") + " 0", "function " + fn("show_1")]);
+    L = ["scoreboard players operation @s " + obj("v") + " = @s " + obj("back"), "scoreboard players set @s " + obj("back") + " 0"];
+    pages.forEach(function(_, p){ L.push("execute if score @s " + obj("v") + " matches " + (p+1) + " run function " + fn("show_" + (p+1))); });
+    add(fpath("back"), L);
+
+    pageDialogs.forEach(function(pd, p){
+      var N = p + 1;
+      L = ["# Copies this player's saved answers into storage " + st + " so page " + N + " opens pre-filled."];
+      pd.page.forEach(function(i){
+        var q = qs[i], k = i+1, sc = "@s " + obj("q" + k);
+        if (q.type === "check") L.push("execute store success storage " + st + " q" + k + " byte 1 if score " + sc + " matches 2");
+        else if (q.type === "button"){ L.push("execute store success storage " + st + " q" + k + "_1 byte 1 unless score " + sc + " matches 2"); L.push("execute store success storage " + st + " q" + k + "_2 byte 1 if score " + sc + " matches 2"); }
+        else if (q.type === "choice") (q.options || []).slice(0,9).forEach(function(_, j){ L.push("execute store success storage " + st + " q" + k + "_" + (j+1) + " byte 1 if score " + sc + " matches " + (j+1)); });
+        else { L.push("data modify storage " + st + " q" + k + " set value " + q.min); L.push("execute if score " + sc + ANY + " store result storage " + st + " q" + k + " int 1 run scoreboard players get " + sc); }
+      });
+      L.push("# The button's command template is passed as text because a macro line cannot contain a literal $(.");
+      L.push("data modify storage " + st + " tpl set value '" + pd.template + "'");
+      L.push("function " + fn("page_" + N) + " with storage " + st);
+      add(fpath("show_" + N), L);
+      add(fpath("page_" + N), ["# Macro: the $(...) values come from storage " + st + ", written by show_" + N + ".", "$dialog show @s " + snbt(pd.dialog)]);
+      add("data/" + ns + "/dialog/" + pid + "_page_" + N + ".json", JSON.stringify(strip(pd.dialog), null, 2));
+
+      L = [];
+      var applyQ = function(i){
+        var q = qs[i], k = i+1, sc = "@s " + obj("q" + k), d = "@s " + obj("d");
+        L.push("execute unless score " + sc + ANY + " run scoreboard players add #q" + k + "_n " + tally + " 1");
+        if (isYN(q)){
+          L.push("execute if score " + sc + " matches 2 run scoreboard players remove #q" + k + "_yes " + tally + " 1");
+          L.push("scoreboard players operation " + sc + " = " + d);
+          L.push("execute if score " + sc + " matches 2 run scoreboard players add #q" + k + "_yes " + tally + " 1");
+        } else if (q.type === "choice"){
+          var n = Math.min((q.options || []).length, 9), j;
+          for (j = 1; j <= n; j++) L.push("execute if score " + sc + " matches " + j + " run scoreboard players remove #q" + k + "_o" + j + " " + tally + " 1");
+          L.push("scoreboard players operation " + sc + " = " + d);
+          for (j = 1; j <= n; j++) L.push("execute if score " + sc + " matches " + j + " run scoreboard players add #q" + k + "_o" + j + " " + tally + " 1");
+        } else {
+          L.push("execute if score " + sc + ANY + " run scoreboard players operation #q" + k + "_sum " + tally + " -= " + sc);
+          L.push("scoreboard players operation " + sc + " = " + d);
+          L.push("scoreboard players operation #q" + k + "_sum " + tally + " += " + sc);
+        }
+      };
+      if (trig){
+        var n = pd.page.length, lo = Math.pow(10, n), hi = 2 * lo - 1;
+        L.push("# The trigger value is a 1 followed by one digit per question. Digits are peeled from the right, last question first.");
+        L.push("scoreboard players operation @s " + obj("v") + " = @s " + obj("p" + N));
+        L.push("scoreboard players set @s " + obj("p" + N) + " 0");
+        L.push("execute unless score @s " + obj("v") + " matches " + lo + ".." + hi + " run return 0");
+        pd.page.slice().reverse().forEach(function(i){
+          L.push("scoreboard players operation @s " + obj("d") + " = @s " + obj("v"));
+          L.push("scoreboard players operation @s " + obj("d") + " %= #10 " + cst);
+          L.push("scoreboard players operation @s " + obj("v") + " /= #10 " + cst);
+          applyQ(i);
+        });
+      } else {
+        L.push("# Macro: the page's Submit button calls this with {a1:\"..\", a2:\"..\"}.");
+        pd.page.forEach(function(i){
+          var q = qs[i], k = i+1;
+          if (q.type === "slider"){ L.push("$data modify storage " + st + " f set value $(a" + k + ")"); L.push("execute store result score @s " + obj("d") + " run data get storage " + st + " f 1"); }
+          else L.push("$scoreboard players set @s " + obj("d") + " $(a" + k + ")");
+          applyQ(i);
+        });
+      }
+      L.push("function " + (pd.last ? fn("results") : fn("show_" + (N+1))));
+      add(fpath("record_" + N), L);
+    });
+
+    /* results: tallies → storage strings → macro notice dialog */
+    L = ["# Turns the tallies into text for the results screen, then shows it to @s.", "scoreboard players set @s " + obj("results") + " 0"];
+    var resultBody = [], pct = "#pct " + tally;
+    var percentOf = function(count, n){ return ["scoreboard players operation " + pct + " = " + count, "scoreboard players operation " + pct + " *= #100 " + cst, "execute if score " + n + " matches 1.. run scoreboard players operation " + pct + " /= " + n, "execute unless score " + n + " matches 1.. run scoreboard players set " + pct + " 0"]; };
+    var C = function(text, color, bold){ var o = {text:text}; if (color) o.color = color; if (bold) o.bold = true; return o; };
+    var barOf = function(key, color){ return [C("$(" + key + "_on)", color), C("$(" + key + "_off)", "dark_gray")]; };
+    var copyBar = function(key){ return ["function " + fn("bar"), "data modify storage " + st + " " + key + "_on set from storage " + st + " bar_on", "data modify storage " + st + " " + key + "_off set from storage " + st + " bar_off"]; };
+    qs.forEach(function(q, i){
+      var k = i+1, n = "#q" + k + "_n " + tally, head = "Q" + k + ": " + flat(q.text);
+      L.push("execute store result storage " + st + " q" + k + "_n int 1 run scoreboard players get " + n);
+      if (isYN(q)){
+        L = L.concat(percentOf("#q" + k + "_yes " + tally, n), copyBar("q" + k));
+        L.push("execute store result storage " + st + " q" + k + "_pct int 1 run scoreboard players get " + pct);
+        L.push("execute store result storage " + st + " q" + k + "_yes int 1 run scoreboard players get #q" + k + "_yes " + tally);
+        var col = "green", tail = [];
+        if (pass){
+          col = "$(q" + k + "_col)"; tail = [C("  $(q" + k + "_verdict)", col, true)];
+          L.push("data modify storage " + st + " q" + k + "_col set value \"red\"", "data modify storage " + st + " q" + k + "_verdict set value \"Failed\"");
+          L.push("execute if score " + pct + " matches " + pass + ".. run data modify storage " + st + " q" + k + "_col set value \"green\"", "execute if score " + pct + " matches " + pass + ".. run data modify storage " + st + " q" + k + "_verdict set value \"Passed\"");
+          L.push("execute unless score " + n + " matches 1.. run data modify storage " + st + " q" + k + "_col set value \"gray\"", "execute unless score " + n + " matches 1.. run data modify storage " + st + " q" + k + "_verdict set value \"No votes\"");
+        }
+        resultBody.push([C(""), C(head, "yellow"), C("\nYes ", "white"), C("$(q" + k + "_pct)%", col, true), C("  ")].concat(barOf("q" + k, col), [C("  $(q" + k + "_yes) of $(q" + k + "_n)", "gray")], tail));
+      } else if (q.type === "choice"){
+        var parts = [C(""), C(head, "yellow")];
+        (q.options || []).slice(0,9).forEach(function(o, j){
+          var c = "#q" + k + "_o" + (j+1) + " " + tally, key = "q" + k + "_o" + (j+1);
+          L = L.concat(percentOf(c, n), copyBar(key));
+          L.push("execute store result storage " + st + " " + key + "_pct int 1 run scoreboard players get " + pct);
+          L.push("execute store result storage " + st + " " + key + " int 1 run scoreboard players get " + c);
+          parts = parts.concat([C("\n" + o + " ", "white"), C("$(" + key + "_pct)%", "aqua", true), C("  ")], barOf(key, "aqua"), [C("  ($(" + key + "))", "gray")]);
+        });
+        resultBody.push(parts);
+      } else {
+        var sum = "#q" + k + "_sum " + tally, ai = "#ai " + tally, ad = "#ad " + tally;
+        L.push("scoreboard players set " + ai + " 0", "scoreboard players set " + ad + " 0");
+        L.push("execute if score " + n + " matches 1.. run scoreboard players operation " + ai + " = " + sum);
+        L.push("execute if score " + n + " matches 1.. run scoreboard players operation " + ai + " /= " + n);
+        L.push("execute if score " + n + " matches 1.. run scoreboard players operation " + ad + " = " + sum);
+        L.push("execute if score " + n + " matches 1.. run scoreboard players operation " + ad + " *= #10 " + cst);
+        L.push("execute if score " + n + " matches 1.. run scoreboard players operation " + ad + " /= " + n);
+        L.push("execute if score " + n + " matches 1.. run scoreboard players operation " + ad + " %= #10 " + cst);
+        L.push("execute store result storage " + st + " q" + k + "_ai int 1 run scoreboard players get " + ai);
+        L.push("execute store result storage " + st + " q" + k + "_ad int 1 run scoreboard players get " + ad);
+        resultBody.push([C(""), C(head, "yellow"), C("\nAverage ", "white"), C("$(q" + k + "_ai).$(q" + k + "_ad)", "aqua", true), C(" from $(q" + k + "_n) votes", "gray")]);
+      }
+    });
+    L.push("function " + fn("results_show") + " with storage " + st);
+    add(fpath("results"), L);
+    var resultsDialog = {type:"minecraft:notice", title:{text:title + " results", color:"green", bold:true}, body: resultBody.map(function(t){ return {type:"minecraft:plain_message", width:rowW, contents:t}; })};
+    add(fpath("results_show"), ["# Macro: the $(...) values come from storage " + st + ", written by results.", "$dialog show @s " + snbt(resultsDialog)]);
+    L = ["# Turns #pct (0-100) into a ten-block bar in storage " + st + ": filled blocks in bar_on, empty ones in bar_off."];
+    for (var b = 0; b <= 10; b++){
+      var range = b === 0 ? "..9" : b === 10 ? "100.." : (b*10) + ".." + (b*10+9);
+      L.push("execute if score " + pct + " matches " + range + " run data modify storage " + st + " bar_on set value \"" + repeat("█", b) + "\"");
+      L.push("execute if score " + pct + " matches " + range + " run data modify storage " + st + " bar_off set value \"" + repeat("░", 10 - b) + "\"");
+    }
+    add(fpath("bar"), L);
+    add(fpath("announce"), 'tellraw @a [{"text":"[Vote]","color":"green","bold":true,"click_event":{"action":"run_command","command":"/trigger ' + obj("open") + '"},"hover_event":{"action":"show_text","value":"Open the poll"}},{"text":"  ' + title.replace(/["\\]/g, "") + '  ","color":"gray"},{"text":"[Results]","color":"aqua","click_event":{"action":"run_command","command":"/trigger ' + obj("results") + '"},"hover_event":{"action":"show_text","value":"See the tallies so far"}}]');
+    add("data/minecraft/tags/function/load.json", JSON.stringify({values:[fn("load")]}, null, 2));
+    add("data/minecraft/tags/function/tick.json", JSON.stringify({values:[fn("tick")]}, null, 2));
+    add("pack.mcmeta", JSON.stringify({pack:{description:title + " poll", min_format:121, max_format:121}}, null, 2));
+    add("README.txt", ["Made with Dialog Creator.", "", "Install: drop this zip into saves/<world>/datapacks and enter the world.", "Post the clickable links once:  /function " + fn("announce"), "Players vote with the [Vote] link, or  /trigger " + obj("open"), "Results screen: the [Results] link, or  /trigger " + obj("results"), "Submission: " + (trig ? "trigger, works for every player" : "function, needs op or singleplayer"), "", "Static copies of each page are in data/" + ns + "/dialog/ (no pre-fill): /dialog show @s " + ns + ":" + pid + "_page_1"]);
+    files.sort(function(a, b){ return a.path < b.path ? -1 : 1; });
+    return {files:files, warnings:warnings, pages:pages, pageDialogs:pageDialogs, rowW:rowW, widthInfo:widthInfo, ns:ns, pid:pid, trig:trig, pass:pass, fn:fn, obj:obj};
+  }
+
+  /* ---------- live mock preview ---------- */
+  function esc(s){ return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function txt(x, y, text, w, o){
+    o = o || {};
+    return '<text x="' + x + '" y="' + y + '" font-family="Silkscreen, monospace" font-size="8"' + (o.anchor ? ' text-anchor="' + o.anchor + '"' : '') + ' fill="' + (o.fill || "#FFFFFF") + '"' + (w > 0 ? ' textLength="' + w + '" lengthAdjust="spacingAndGlyphs"' : '') + (o.deco ? ' text-decoration="' + o.deco + '"' : '') + '>' + esc(text) + '</text>';
+  }
+  function drawMock(b){
+    var sz = S.screen.split("x"), W = parseInt(sz[0], 10) || 480, H = parseInt(sz[1], 10) || 270;
+    var pd = b.pageDialogs[Math.min(activePage, b.pageDialogs.length - 1)];
+    var s = '<svg id="mock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + (W*2) + '" height="' + (H*2) + '">';
+    s += '<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A3B55"/><stop offset="1" stop-color="#101820"/></linearGradient></defs><rect width="' + W + '" height="' + H + '" fill="url(#bg)"/>';
+    if (!pd){ $("mock").outerHTML = s + txt(W/2, H/2, "no questions", 0, {anchor:"middle", fill:"#9AA3AE"}) + '</svg>'; $("mockLine").textContent = ""; return; }
+    var title = S.title || "Poll", tw = measure(title, true).w, tx = (W - (tw + 26)) / 2;
+    s += txt(tx, 17, title, tw, {fill:"#55FF55", deco:"underline"});
+    s += '<rect x="' + (tx + tw + 6) + '" y="6" width="20" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(tx + tw + 16, 20, "!", 0, {anchor:"middle", fill:"#FFD23F"});
+    var rowW = b.rowW, items = [], bodyLines = [], contentH = 0, tooWide = rowW > W;
+    pd.bodyLines.forEach(function(t){ wrap(t, rowW).forEach(function(l){ bodyLines.push(l); }); });
+    if (bodyLines.length){ items.push({kind:"body", h: bodyLines.length * 9}); contentH += bodyLines.length * 9 + 8; }
+    pd.dialog.inputs.forEach(function(inp, idx){
+      var it;
+      if (inp.type === "minecraft:boolean"){
+        var joined = inp.label.map(function(p){ return p.text; }).join(""), boldExtra = inp.label.filter(function(p){ return p.bold; }).reduce(function(a, p){ return a + p.text.length; }, 0);
+        var lines = joined.split("\n"); it = {kind:"check", lines:lines, total: measure(joined).w + boldExtra, h: Math.max(17, lines.length * 9)};
+        if (BOX + it.total > W) tooWide = true;
+      } else it = {kind:"widget", inp:inp, q:state.questions[pd.page[idx]], h:20};
+      items.push(it); contentH += it.h + 6;
+    });
+    items.push({kind:"actions", h:20}); contentH += 20;
+    var bandTop = 33, bandH = H - 66, overflow = contentH > bandH, y = overflow ? bandTop : bandTop + (bandH - contentH) / 2;
+    s += '<clipPath id="clip"><rect x="0" y="' + bandTop + '" width="' + W + '" height="' + bandH + '"/></clipPath><g clip-path="url(#clip)">';
+    items.forEach(function(it){
+      if (it.kind === "body"){ bodyLines.forEach(function(l, k){ s += txt(W/2, y + 7 + k*9, l, measure(l).w, {anchor:"middle"}); }); y += it.h + 8; return; }
+      if (it.kind === "check"){
+        var left = (W - (BOX + it.total)) / 2, top = y + (it.h - 17) / 2;
+        s += '<rect x="' + left + '" y="' + top + '" width="17" height="17" fill="#202020" stroke="#C0C0C0"/>';
+        it.lines.forEach(function(l, k){ var t = l.replace(/\s+$/, ""); s += txt(left + BOX, y + 7 + k*9 + (it.h - it.lines.length*9)/2, t, measure(t).w); });
+        y += it.h + 6; return;
+      }
+      if (it.kind === "actions"){
+        var acts = pd.dialog.actions, gap = 4, totalW = acts.reduce(function(a, x){ return a + x.width; }, 0) + gap * (acts.length - 1), ax = (W - totalW) / 2;
+        acts.forEach(function(a){ s += '<rect x="' + ax + '" y="' + y + '" width="' + a.width + '" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(ax + a.width/2, y + 14, a.label.text, measure(a.label.text).w, {anchor:"middle", fill: a.label.color === "dark_green" ? "#55FF55" : "#FFFFFF"}); ax += a.width + gap; });
+        y += 20; return;
+      }
+      var inp = it.inp, left2 = (W - rowW) / 2, value = inp.type === "minecraft:number_range" ? String(it.q.min) : inp.options[0].display.text, text = inp.label.text + ": " + value, w2 = Math.min(measure(text).w, rowW - 8);
+      s += '<rect x="' + left2 + '" y="' + y + '" width="' + rowW + '" height="20" fill="#5F5F5F" stroke="#000"/>';
+      if (inp.type === "minecraft:number_range") s += '<rect x="' + (left2 + 1) + '" y="' + (y + 1) + '" width="8" height="18" fill="#8B8B8B" stroke="#000"/>';
+      s += txt(W/2, y + 14, text, w2, {anchor:"middle"});
+      y += 26;
+    });
+    s += '</g>';
+    if (overflow) s += '<rect x="' + (W - 8) + '" y="' + bandTop + '" width="6" height="' + bandH + '" fill="#000"/><rect x="' + (W - 8) + '" y="' + bandTop + '" width="6" height="' + Math.max(12, bandH * bandH / contentH) + '" fill="#C0C0C0"/>';
+    s += '<rect x="' + ((W - 80) / 2) + '" y="' + (H - 27) + '" width="80" height="20" fill="#6E6E6E" stroke="#000"/>' + txt(W/2, H - 13, "Close", measure("Close").w, {anchor:"middle"});
+    if (tooWide) s += '<rect x="0.5" y="0.5" width="' + (W-1) + '" height="' + (H-1) + '" fill="none" stroke="#E08A3A"/>';
+    $("mock").outerHTML = s + '</svg>';
+    $("mockLine").textContent = W + "×" + H + " game pixels · page " + (Math.min(activePage, b.pageDialogs.length-1) + 1) + " of " + b.pageDialogs.length + (overflow ? " · scrolls in game" : "") + (tooWide ? " · wider than the screen" : "");
+  }
+
+  /* ---------- outputs ---------- */
+  function copy(text, btn){
+    var done = function(){ var t = btn.textContent; btn.textContent = "Copied"; setTimeout(function(){ btn.textContent = t; }, 1200); };
+    var fallback = function(){ var ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly",""); ta.style.position = "fixed"; ta.style.left = "-9999px"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch(e){} document.body.removeChild(ta); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+  function renderFiles(b){
+    var box = $("files"); box.innerHTML = "";
+    b.files.forEach(function(f){
+      var d = el("details", {"class":"file"}), sm = el("summary"); sm.appendChild(el("span", {}, f.path));
+      var btn = el("button", {"class":"small", "type":"button"}, "Copy");
+      btn.addEventListener("click", function(ev){ ev.preventDefault(); ev.stopPropagation(); copy(f.content, btn); });
+      sm.appendChild(btn); d.appendChild(sm); d.appendChild(el("pre", {}, f.content)); box.appendChild(d);
+    });
+    $("howto").innerHTML = "Drop the zip into <code>saves/&lt;world&gt;/datapacks</code>, enter the world, run <code>/function " + esc(b.fn("announce")) + "</code> once to post the [Vote] and [Results] links. Or copy the files below one by one.";
+  }
+  $("download").addEventListener("click", function(){
+    if (!lastBuild || typeof JSZip === "undefined"){ alert("The zip library did not load. Copy the files one by one instead."); return; }
+    var zip = new JSZip();
+    lastBuild.files.forEach(function(f){ zip.file(f.path, f.content); });
+    zip.generateAsync({type:"blob"}).then(function(blob){
+      var name = lastBuild.pid + "-poll.zip";
+      var hosted = window.claude && typeof window.claude.use === "function" ? window.claude.use("downloads") : Promise.resolve(null);
+      hosted.then(function(dl){
+        if (dl) return dl.save({filename:name, data:blob}).catch(function(e){ if (!e || e.code !== "declined") alert("Could not save the zip here. Copy the files one by one instead."); });
+        var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+      });
+    });
+  });
+  function renderTabs(b){
+    var t = $("tabs"); t.innerHTML = "";
+    if (b.pages.length < 2) return;
+    b.pages.forEach(function(_, p){ var btn = el("button", {"class":"tab" + (p === activePage ? " active" : ""), "type":"button"}, "Page " + (p+1)); btn.addEventListener("click", function(){ activePage = p; update(); }); t.appendChild(btn); });
+  }
+  function update(){
+    try { localStorage.setItem("dca-state2", JSON.stringify(state)); } catch(e){}
+    var b = build(); lastBuild = b;
+    if (activePage >= b.pages.length) activePage = 0;
+    $("statLine").textContent = b.pages.length + (b.pages.length === 1 ? " page" : " pages") + " · rows " + b.rowW + " px · " + (b.trig ? "trigger" : "function") + " submit" + (b.pass ? " · pass at " + b.pass + "%" : "");
+    b.widthInfo.forEach(function(wi, i){ var e = $("w"+i); if (e){ e.textContent = wi.w + " px"; e.style.color = wi.w > wi.limit ? "var(--accent)" : ""; } });
+    var warn = $("warnings"); warn.innerHTML = "";
+    b.warnings.forEach(function(w){ warn.appendChild(el("div", {"class":"warn"}, w)); });
+    warn.classList.toggle("hidden", b.warnings.length === 0);
+    renderTabs(b); drawMock(b); renderFiles(b);
+  }
+
+  window.__dca = {state:state, build:build, update:update, renderQuestions:renderQuestions, measure:measure};
+  renderQuestions(); update();
+})();
+</script>
+</body>
+</html>
